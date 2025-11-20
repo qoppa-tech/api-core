@@ -32,3 +32,10 @@ main
 # OS X generated file
 .DS_Store
 
+# Logs
+*.log
+
+# Nginx
+/nginx/access.log
+/nginx/error.log
+/nginx/storage/

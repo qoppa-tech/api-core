@@ -1,10 +1,13 @@
-package database
+package test
 
 import (
 	"context"
 	"log"
+	"os"
 	"testing"
 	"time"
+
+	db "github.com/parlorhub/api-core/internal/database"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -33,10 +36,6 @@ func mustStartPostgresContainer() (func(context.Context, ...testcontainers.Termi
 		return nil, err
 	}
 
-	database = dbName
-	password = dbPwd
-	username = dbUser
-
 	dbHost, err := dbContainer.Host(context.Background())
 	if err != nil {
 		return dbContainer.Terminate, err
@@ -47,8 +46,13 @@ func mustStartPostgresContainer() (func(context.Context, ...testcontainers.Termi
 		return dbContainer.Terminate, err
 	}
 
-	host = dbHost
-	port = dbPort.Port()
+	// Set environment variables for the database connection
+	os.Setenv("DB_HOST", dbHost)
+	os.Setenv("DB_PORT", dbPort.Port())
+	os.Setenv("DB_DATABASE", dbName)
+	os.Setenv("DB_USERNAME", dbUser)
+	os.Setenv("DB_PASSWORD", dbPwd)
+	os.Setenv("DB_SCHEMA", "public")
 
 	return dbContainer.Terminate, err
 }
@@ -67,14 +71,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	srv := New()
+	srv := db.New()
 	if srv == nil {
 		t.Fatal("New() returned nil")
 	}
 }
 
 func TestHealth(t *testing.T) {
-	srv := New()
+	srv := db.New()
 
 	stats := srv.Health()
 
@@ -92,7 +96,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	srv := New()
+	srv := db.New()
 
 	if srv.Close() != nil {
 		t.Fatalf("expected Close() to return nil")

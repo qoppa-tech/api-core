@@ -1,6 +1,9 @@
-# Simple Makefile for a Go project
+ifneq (,$(wildcard ./.env))
+	include .env
+	export
+	DB_URL=postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_DATABASE)?sslmode=disable
+endif
 
-# Build the application
 all: build test
 
 build:
@@ -9,10 +12,9 @@ build:
 	
 	@go build -o main cmd/api/main.go
 
-# Run the application
 run:
 	@go run cmd/api/main.go
-# Create DB container
+
 docker-run:
 	@if docker compose up --build 2>/dev/null; then \
 		: ; \
@@ -21,7 +23,6 @@ docker-run:
 		docker-compose up --build; \
 	fi
 
-# Shutdown DB container
 docker-down:
 	@if docker compose down 2>/dev/null; then \
 		: ; \
@@ -30,21 +31,18 @@ docker-down:
 		docker-compose down; \
 	fi
 
-# Test the application
 test:
 	@echo "Testing..."
 	@go test ./... -v
-# Integrations Tests for the application
+
 itest:
 	@echo "Running integration tests..."
 	@go test ./internal/database -v
 
-# Clean the binary
 clean:
 	@echo "Cleaning..."
 	@rm -f main
 
-# Live Reload
 watch:
 	@if command -v air > /dev/null; then \
             air; \
@@ -61,4 +59,43 @@ watch:
             fi; \
         fi
 
+migrate-create:
+	@if [ -z "$(name)" ]; then \
+		echo "Error: name is required. Usage: make migrate-create name=your_migration_name"; \
+		exit 1; \
+	fi; \
+	if ! command -v migrate > /dev/null; then \
+		echo "golang-migrate is not installed. Run 'make install-migrate' first."; \
+		exit 1; \
+	fi; \
+	migrate create -ext sql -dir migrations/schema -seq $(name)
+
+migrate-up:
+	@echo "Running migrations..."
+	migrate -path migrations/schema -database "$(DB_URL)" -verbose up
+migrate-down:
+	@echo "Rolling back last migration..."
+	migrate -path migrations/schema -database "$(DB_URL)" -verbose down 1
+
+migrate-down-all:
+	@echo "Rolling back all migrations..."
+	migrate -path migrations/schema -database "$(DB_URL)" -verbose down -all
+migrate-force:
+	@if [ -z "$(version)" ]; then \
+		echo "Error: version is required. Usage: make migrate-force version=001"; \
+		exit 1; \
+	fi; \
+	migrate -path migrations/schema -database "$(DB_URL)" force $(version)
+
+migrate-status:
+	@if ! command -v migrate > /dev/null; then \
+		echo "golang-migrate is not installed. Run 'make install-migrate' first."; \
+		exit 1; \
+	fi; \
+	migrate -path migrations/schema -database "$(DB_URL)" version
+
+queries_gen:
+	@sqlc generate
+
 .PHONY: all build run test clean watch docker-run docker-down itest
+.PHONY: migrate-create migrate-up migrate-down migrate-down-all migrate-force migrate-status queries_gen
