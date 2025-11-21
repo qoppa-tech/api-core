@@ -9,23 +9,26 @@ import (
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database"
+	"github.com/parlorhub/api-core/internal/modules/auth"
 )
 
 type Server struct {
 	port int
 
-	db database.Service
+	db          database.Service
+	authHandler *auth.AuthHandler
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	db := database.New()
 	NewServer := &Server{
 		port: port,
 
-		db: database.New(),
+		db:          db,
+		authHandler: auth.NewAuthHandler(db.GetDB()),
 	}
 
-	// Declare Server config
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", NewServer.port),
 		Handler:      NewServer.RegisterRoutes(),

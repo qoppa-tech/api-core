@@ -10,7 +10,6 @@ import (
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
-
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -21,6 +20,14 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}))
 
 	r.GET("/health", s.healthHandler)
+
+	auth := r.Group("/auth")
+	{
+		auth.POST("/register", s.authHandler.RegisterHandler)
+		auth.POST("/login", s.authHandler.LoginHandler)
+		auth.GET("/me", s.authHandler.MeHandler)
+		auth.POST("/logout", s.authHandler.LogoutHandler)
+	}
 
 	return r
 }
