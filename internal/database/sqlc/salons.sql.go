@@ -25,7 +25,7 @@ INSERT INTO salons (
     logo_url
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
-) RETURNING id, name, slug, owner_id, address, whatsapp, business_hours, logo_url, created_at, updated_at
+) RETURNING id, name, slug, owner_id, address, whatsapp, timezone, business_hours, logo_url, created_at, updated_at
 `
 
 type CreateSalonParams struct {
@@ -56,6 +56,7 @@ func (q *Queries) CreateSalon(ctx context.Context, arg CreateSalonParams) (Salon
 		&i.OwnerID,
 		&i.Address,
 		&i.Whatsapp,
+		&i.Timezone,
 		&i.BusinessHours,
 		&i.LogoUrl,
 		&i.CreatedAt,
@@ -75,7 +76,7 @@ func (q *Queries) DeleteSalon(ctx context.Context, id uuid.UUID) error {
 }
 
 const getSalonByID = `-- name: GetSalonByID :one
-SELECT id, name, slug, owner_id, address, whatsapp, business_hours, logo_url, created_at, updated_at FROM salons
+SELECT id, name, slug, owner_id, address, whatsapp, timezone, business_hours, logo_url, created_at, updated_at FROM salons
 WHERE id = $1 LIMIT 1
 `
 
@@ -89,6 +90,7 @@ func (q *Queries) GetSalonByID(ctx context.Context, id uuid.UUID) (Salon, error)
 		&i.OwnerID,
 		&i.Address,
 		&i.Whatsapp,
+		&i.Timezone,
 		&i.BusinessHours,
 		&i.LogoUrl,
 		&i.CreatedAt,
@@ -98,7 +100,7 @@ func (q *Queries) GetSalonByID(ctx context.Context, id uuid.UUID) (Salon, error)
 }
 
 const getSalonByOwnerID = `-- name: GetSalonByOwnerID :one
-SELECT id, name, slug, owner_id, address, whatsapp, business_hours, logo_url, created_at, updated_at FROM salons
+SELECT id, name, slug, owner_id, address, whatsapp, timezone, business_hours, logo_url, created_at, updated_at FROM salons
 WHERE owner_id = $1 LIMIT 1
 `
 
@@ -112,6 +114,7 @@ func (q *Queries) GetSalonByOwnerID(ctx context.Context, ownerID uuid.UUID) (Sal
 		&i.OwnerID,
 		&i.Address,
 		&i.Whatsapp,
+		&i.Timezone,
 		&i.BusinessHours,
 		&i.LogoUrl,
 		&i.CreatedAt,
@@ -121,7 +124,7 @@ func (q *Queries) GetSalonByOwnerID(ctx context.Context, ownerID uuid.UUID) (Sal
 }
 
 const getSalonBySlug = `-- name: GetSalonBySlug :one
-SELECT id, name, slug, owner_id, address, whatsapp, business_hours, logo_url, created_at, updated_at FROM salons
+SELECT id, name, slug, owner_id, address, whatsapp, timezone, business_hours, logo_url, created_at, updated_at FROM salons
 WHERE slug = $1 LIMIT 1
 `
 
@@ -135,6 +138,7 @@ func (q *Queries) GetSalonBySlug(ctx context.Context, slug string) (Salon, error
 		&i.OwnerID,
 		&i.Address,
 		&i.Whatsapp,
+		&i.Timezone,
 		&i.BusinessHours,
 		&i.LogoUrl,
 		&i.CreatedAt,
@@ -144,7 +148,7 @@ func (q *Queries) GetSalonBySlug(ctx context.Context, slug string) (Salon, error
 }
 
 const listSalons = `-- name: ListSalons :many
-SELECT id, name, slug, owner_id, address, whatsapp, business_hours, logo_url, created_at, updated_at FROM salons
+SELECT id, name, slug, owner_id, address, whatsapp, timezone, business_hours, logo_url, created_at, updated_at FROM salons
 ORDER BY created_at DESC
 `
 
@@ -164,6 +168,7 @@ func (q *Queries) ListSalons(ctx context.Context) ([]Salon, error) {
 			&i.OwnerID,
 			&i.Address,
 			&i.Whatsapp,
+			&i.Timezone,
 			&i.BusinessHours,
 			&i.LogoUrl,
 			&i.CreatedAt,
@@ -193,7 +198,7 @@ SET
     logo_url = COALESCE($7, logo_url),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, slug, owner_id, address, whatsapp, business_hours, logo_url, created_at, updated_at
+RETURNING id, name, slug, owner_id, address, whatsapp, timezone, business_hours, logo_url, created_at, updated_at
 `
 
 type UpdateSalonParams struct {
@@ -224,6 +229,7 @@ func (q *Queries) UpdateSalon(ctx context.Context, arg UpdateSalonParams) (Salon
 		&i.OwnerID,
 		&i.Address,
 		&i.Whatsapp,
+		&i.Timezone,
 		&i.BusinessHours,
 		&i.LogoUrl,
 		&i.CreatedAt,

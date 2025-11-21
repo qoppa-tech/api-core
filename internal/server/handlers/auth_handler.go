@@ -1,11 +1,14 @@
 package handlers
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/parlorhub/api-core/internal/database/sqlc"
+)
 
-// TODO: NEEDS DATABASE INTEGRATION TO COMPLETE
 type AuthHandler struct {
+	queries *sqlc.Queries
 }
 
-func (ah *AuthHandler) LoginRoute(c *gin.Context) {
+func (ah *AuthHandler) RegisterHandler(ctx gin.Context) {
 
 }

@@ -244,6 +244,7 @@ type Salon struct {
 	OwnerID       uuid.UUID       `json:"owner_id"`
 	Address       string          `json:"address"`
 	Whatsapp      sql.NullString  `json:"whatsapp"`
+	Timezone      string          `json:"timezone"`
 	BusinessHours json.RawMessage `json:"business_hours"`
 	LogoUrl       sql.NullString  `json:"logo_url"`
 	CreatedAt     time.Time       `json:"created_at"`
