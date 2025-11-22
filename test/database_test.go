@@ -46,7 +46,6 @@ func mustStartPostgresContainer() (func(context.Context, ...testcontainers.Termi
 		return dbContainer.Terminate, err
 	}
 
-	// Set environment variables for the database connection
 	os.Setenv("DB_HOST", dbHost)
 	os.Setenv("DB_PORT", dbPort.Port())
 	os.Setenv("DB_DATABASE", dbName)
