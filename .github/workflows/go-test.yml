@@ -30,14 +30,4 @@ jobs:
         run: go build -v ./...
 
       - name: Run tests with race detection
-        run: go test -v -race -coverprofile=coverage.out ./...
-
-      - name: Display coverage
-        run: go tool cover -func=coverage.out
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.out
-          retention-days: 30
+        run: go test -v -race ./...
