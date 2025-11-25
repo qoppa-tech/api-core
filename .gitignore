@@ -25,6 +25,9 @@ tmp/
 # .env file
 .env
 
+# Node.js
+node_modules/
+
 # Project build
 main
 *templ.go
