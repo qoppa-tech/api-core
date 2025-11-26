@@ -1,0 +1,14 @@
+{
+    "name": "api-core",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Parlor API Core",
+    "devDependencies": {
+        "@commitlint/cli": "^19.8.1",
+        "@commitlint/config-conventional": "^19.8.1",
+        "semantic-release": "^24.2.0",
+        "@semantic-release/git": "^10.0.1",
+        "@semantic-release/changelog": "^6.0.3",
+        "conventional-changelog-conventionalcommits": "^8.0.0"
+    }
+}
