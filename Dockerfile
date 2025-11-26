@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o main cmd/api/main.go
 
 # Production stage
-FROM alpine:3.20.1 AS prod
+FROM alpine:3.22.2 AS prod
 
 # Install ca-certificates for HTTPS and create non-root user
 RUN apk --no-cache add ca-certificates && \
