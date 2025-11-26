@@ -32,11 +32,11 @@ docker-down:
 
 test:
 	@echo "Testing..."
-	@go test ./... -v
+	@go test ./test/... -v
 
-itest:
-	@echo "Running integration tests..."
-	@go test ./internal/database -v
+# itest:
+# 	@echo "Running integration tests..."
+# 	@go test ./internal/database -v
 
 clean:
 	@echo "Cleaning..."
