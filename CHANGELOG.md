@@ -1,3 +1,13 @@
+## [1.1.0](https://github.com/parlorhub/api-core/compare/v1.0.0...v1.1.0) (2025-11-26)
+
+### Features
+
+* implement email handling with template management and MailTrap integration ([e6be596](https://github.com/parlorhub/api-core/commit/e6be5964d1d131fc8791b8e68586940fdd32bd49))
+
+### Bug Fixes
+
+* fixed error at testhealth on database_test.go ([14e2500](https://github.com/parlorhub/api-core/commit/14e25003d48618ceff07e08af89b3865c8c1d9d3))
+
 ## 1.0.0 (2025-11-26)
 
 ### ⚠ BREAKING CHANGES
