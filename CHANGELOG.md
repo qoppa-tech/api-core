@@ -1,3 +1,10 @@
+## [1.4.0](https://github.com/parlorhub/api-core/compare/v1.3.0...v1.4.0) (2025-11-28)
+
+### Features
+
+*  add migration to add uuidv7 as the default id for all tables ([876e499](https://github.com/parlorhub/api-core/commit/876e499968ccca5b5d5fddeaae0b482d94cd9307))
+*  add migration to add uuidv7 as the default id for all tables ([4a15f5d](https://github.com/parlorhub/api-core/commit/4a15f5d0ac2ff1341066e7e18795afdd87bcb508))
+
 ## [1.3.0](https://github.com/parlorhub/api-core/compare/v1.2.0...v1.3.0) (2025-11-28)
 
 ### Features
