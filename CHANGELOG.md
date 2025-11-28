@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/parlorhub/api-core/compare/v1.2.0...v1.3.0) (2025-11-28)
+
+### Features
+
+* add routes for contact form ([327c5f0](https://github.com/parlorhub/api-core/commit/327c5f0407be266ca727b97c7ede5ff57c1607ea))
+
 ## [1.2.0](https://github.com/parlorhub/api-core/compare/v1.1.0...v1.2.0) (2025-11-28)
 
 ### Features
