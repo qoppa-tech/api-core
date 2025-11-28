@@ -1,3 +1,10 @@
+## [1.2.0](https://github.com/parlorhub/api-core/compare/v1.1.0...v1.2.0) (2025-11-28)
+
+### Features
+
+* implement contact form functionality including database schema ([10b578f](https://github.com/parlorhub/api-core/commit/10b578fe46287feb644ef4ed615e894e1dc910cd))
+* implement contact form functionality including database schema, API endpoints, and handlers. ([e27a463](https://github.com/parlorhub/api-core/commit/e27a46312fa7adf0c96713d1a7c4076375fd28de))
+
 ## [1.1.0](https://github.com/parlorhub/api-core/compare/v1.0.0...v1.1.0) (2025-11-26)
 
 ### Features
