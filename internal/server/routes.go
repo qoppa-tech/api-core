@@ -29,6 +29,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 		auth.POST("/logout", s.authHandler.LogoutHandler)
 	}
 
+	contactForm := r.Group("/contact-form")
+	{
+		contactForm.POST("/", s.contactFormHandler.CreateContactForm)
+		contactForm.GET("/", s.contactFormHandler.ListContactForms)
+	}
+
 	return r
 }
 
