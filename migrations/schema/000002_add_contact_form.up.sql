@@ -1,7 +1,7 @@
 CREATE TYPE contact_form_subject AS ENUM ('support', 'sales', 'partnership');
 -- Contact Form table
 CREATE TABLE contact_form (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuidv4(),
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
