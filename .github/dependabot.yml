@@ -28,7 +28,6 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      # Group minor and patch updates together
       minor-and-patch:
         patterns:
           - "*"
