@@ -59,6 +59,49 @@ func (ns NullAppointmentStatus) Value() (driver.Value, error) {
 	return string(ns.AppointmentStatus), nil
 }
 
+type ContactFormSubject string
+
+const (
+	ContactFormSubjectSupport     ContactFormSubject = "support"
+	ContactFormSubjectSales       ContactFormSubject = "sales"
+	ContactFormSubjectPartnership ContactFormSubject = "partnership"
+)
+
+func (e *ContactFormSubject) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ContactFormSubject(s)
+	case string:
+		*e = ContactFormSubject(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ContactFormSubject: %T", src)
+	}
+	return nil
+}
+
+type NullContactFormSubject struct {
+	ContactFormSubject ContactFormSubject `json:"contact_form_subject"`
+	Valid              bool               `json:"valid"` // Valid is true if ContactFormSubject is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullContactFormSubject) Scan(value interface{}) error {
+	if value == nil {
+		ns.ContactFormSubject, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ContactFormSubject.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullContactFormSubject) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ContactFormSubject), nil
+}
+
 type NotificationStatus string
 
 const (
@@ -214,6 +257,18 @@ type Client struct {
 	TotalAppointments int32          `json:"total_appointments"`
 	LastAppointment   sql.NullTime   `json:"last_appointment"`
 	CreatedAt         time.Time      `json:"created_at"`
+}
+
+type ContactForm struct {
+	ID          uuid.UUID          `json:"id"`
+	FullName    string             `json:"full_name"`
+	Email       string             `json:"email"`
+	PhoneNumber sql.NullString     `json:"phone_number"`
+	SalonName   sql.NullString     `json:"salon_name"`
+	Subject     ContactFormSubject `json:"subject"`
+	Message     string             `json:"message"`
+	CreatedAt   time.Time          `json:"created_at"`
+	AnsweredAt  sql.NullTime       `json:"answered_at"`
 }
 
 type Notification struct {

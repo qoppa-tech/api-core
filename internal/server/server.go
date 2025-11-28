@@ -10,13 +10,15 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database"
 	"github.com/parlorhub/api-core/internal/modules/auth"
+	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
 )
 
 type Server struct {
 	port int
 
-	db          database.Service
-	authHandler *auth.AuthHandler
+	db                 database.Service
+	authHandler        *auth.AuthHandler
+	contactFormHandler *contactform.ContactFormHandler
 }
 
 func NewServer() *http.Server {
