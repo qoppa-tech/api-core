@@ -21,6 +21,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 
+	r.Static("/docs", "./docs")
+
 	auth := r.Group("/auth")
 	{
 		auth.POST("/register", s.authHandler.RegisterHandler)
