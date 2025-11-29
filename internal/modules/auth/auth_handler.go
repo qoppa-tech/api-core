@@ -57,7 +57,8 @@ type AuthResponse struct {
 func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 	InitJWTConfig()
 
-	ctx.SetSameSite(http.SameSiteStrictMode)
+	// Access token cookie - short-lived
+	ctx.SetSameSite(http.SameSiteLaxMode)
 	ctx.SetCookie(
 		AccessTokenCookieName,
 		tokens.AccessToken,
@@ -65,17 +66,18 @@ func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 		"/",
 		CookieDomain,
 		CookieSecure,
-		true,
+		true, // httpOnly
 	)
 
+	// Refresh token cookie - long-lived, same path so it's always sent
 	ctx.SetCookie(
 		RefreshTokenCookieName,
 		tokens.RefreshToken,
 		int(RefreshExpiration.Seconds()),
-		"/auth/refresh",
+		"/",
 		CookieDomain,
 		CookieSecure,
-		true,
+		true, // httpOnly
 	)
 }
 
@@ -83,8 +85,9 @@ func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 func ClearAuthCookies(ctx *gin.Context) {
 	InitJWTConfig()
 
+	ctx.SetSameSite(http.SameSiteLaxMode)
 	ctx.SetCookie(AccessTokenCookieName, "", -1, "/", CookieDomain, CookieSecure, true)
-	ctx.SetCookie(RefreshTokenCookieName, "", -1, "/auth/refresh", CookieDomain, CookieSecure, true)
+	ctx.SetCookie(RefreshTokenCookieName, "", -1, "/", CookieDomain, CookieSecure, true)
 }
 
 // GetAccessTokenFromRequest extracts access token from cookie or Authorization header

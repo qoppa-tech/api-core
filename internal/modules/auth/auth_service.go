@@ -90,7 +90,6 @@ func InitJWTConfig() {
 	})
 }
 
-// GenerateAccessToken creates a JWT access token for a user
 func (s *AuthService) GenerateAccessToken(user sqlc.User) (string, error) {
 	InitJWTConfig()
 
@@ -115,7 +114,6 @@ func (s *AuthService) GenerateAccessToken(user sqlc.User) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-// GenerateRefreshToken creates a secure random refresh token
 func (s *AuthService) GenerateRefreshToken() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -124,7 +122,6 @@ func (s *AuthService) GenerateRefreshToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
-// ParseToken parses and validates a JWT token, returns claims even if expired
 func (s *AuthService) ParseToken(tokenString string) (*Claims, error) {
 	InitJWTConfig()
 
