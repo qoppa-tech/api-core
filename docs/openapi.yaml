@@ -273,20 +273,29 @@ components:
     ContactFormRequest:
       type: object
       required:
-        - name
+        - full_name
         - email
+        - subject
         - message
       properties:
-        name:
+        full_name:
           type: string
           example: John Doe
         email:
           type: string
           format: email
           example: john@example.com
-        phone:
+        phone_number:
           type: string
           example: "+1234567890"
+        salon_name:
+          type: string
+          example: "John's Salon"
+        subject:
+          type: string
+          enum: [support, sales, partnership]
+          example: support
+          description: The subject/category of the contact form
         message:
           type: string
           example: I would like to learn more about your services.
@@ -297,14 +306,26 @@ components:
         id:
           type: string
           format: uuid
-        name:
+        full_name:
           type: string
         email:
           type: string
-        phone:
+        phone_number:
           type: string
+          nullable: true
+        salon_name:
+          type: string
+          nullable: true
+        subject:
+          type: string
+          enum: [support, sales, partnership]
         message:
           type: string
+        responded:
+          type: boolean
         created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time

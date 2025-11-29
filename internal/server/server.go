@@ -2,13 +2,13 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/parlorhub/api-core/internal/database"
+	"github.com/parlorhub/api-core/internal/logger"
 	"github.com/parlorhub/api-core/internal/middleware/rbac"
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
@@ -27,12 +27,15 @@ type Server struct {
 }
 
 func NewServer() *http.Server {
+	// Initialize logger first
+	logger.Init()
+
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	db := database.New()
 
 	sessionService, err := session.NewSessionService()
 	if err != nil {
-		log.Printf("Warning: Failed to initialize session service: %v", err)
+		logger.Warn("Failed to initialize session service", logger.Err(err))
 	}
 
 	authHandler := auth.NewAuthHandler(db.GetDB(), sessionService)
@@ -56,6 +59,8 @@ func NewServer() *http.Server {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
+
+	logger.Info("Server initialized", logger.F("port", port))
 
 	return server
 }

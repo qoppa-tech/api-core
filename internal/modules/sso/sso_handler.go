@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
+	"github.com/parlorhub/api-core/internal/logger"
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -73,7 +73,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	// Exchange code for token
 	token, err := getGoogleOAuthConfig().Exchange(context.Background(), code)
 	if err != nil {
-		log.Printf("Error exchanging code for token: %v", err)
+		logger.Error("Failed to exchange code for token", logger.Err(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to exchange token"})
 		return
 	}
@@ -81,7 +81,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	// Get user info from Google
 	userInfo, err := getGoogleUserInfo(token.AccessToken)
 	if err != nil {
-		log.Printf("Error getting user info: %v", err)
+		logger.Error("Failed to get user info from Google", logger.Err(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
 		return
 	}
@@ -108,12 +108,12 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 				SalonID:      uuid.NullUUID{Valid: false},
 			})
 			if err != nil {
-				log.Printf("Error creating user: %v", err)
+				logger.Error("Failed to create user from SSO", logger.Err(err), logger.F("email", userInfo.Email))
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 				return
 			}
 		} else if err != nil {
-			log.Printf("Error checking existing user: %v", err)
+			logger.Error("Failed to check existing user", logger.Err(err), logger.F("email", userInfo.Email))
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 			return
 		} else {
@@ -130,19 +130,19 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 			ExpiresAt:      sql.NullTime{Time: token.Expiry, Valid: !token.Expiry.IsZero()},
 		})
 		if err != nil {
-			log.Printf("Error creating SSO record: %v", err)
+			logger.Error("Failed to create SSO record", logger.Err(err), logger.F("provider", "google"), logger.F("user_id", user.ID))
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create SSO record"})
 			return
 		}
 	} else if err != nil {
-		log.Printf("Error checking SSO record: %v", err)
+		logger.Error("Failed to check SSO record", logger.Err(err), logger.F("provider", "google"))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	} else {
 		// SSO record exists, get user
 		user, err = h.queries.GetUserByID(ctx.Request.Context(), ssoRecord.UserID)
 		if err != nil {
-			log.Printf("Error getting user: %v", err)
+			logger.Error("Failed to get user", logger.Err(err), logger.F("user_id", ssoRecord.UserID))
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
 			return
 		}
@@ -155,7 +155,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 			ExpiresAt:    sql.NullTime{Time: token.Expiry, Valid: !token.Expiry.IsZero()},
 		})
 		if err != nil {
-			log.Printf("Error updating SSO tokens: %v", err)
+			logger.Warn("Failed to update SSO tokens", logger.Err(err), logger.F("sso_id", ssoRecord.ID))
 		}
 	}
 
@@ -163,7 +163,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	oldToken := auth.GetAccessTokenFromRequest(ctx)
 	tokens, err := h.authService.CreateSession(ctx.Request.Context(), user, oldToken)
 	if err != nil {
-		log.Printf("Error creating session: %v", err)
+		logger.Error("Failed to create session", logger.Err(err), logger.F("user_id", user.ID))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}

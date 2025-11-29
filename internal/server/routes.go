@@ -6,14 +6,17 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/parlorhub/api-core/internal/logger"
 	"github.com/parlorhub/api-core/internal/modules/auth"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(logger.SetupLogger())
+	r.Use(gin.Recovery())
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{os.Getenv("FRONTEND_URL")},
+		AllowOrigins:     []string{"http://localhost:4321", os.Getenv("FRONTEND_URL")},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -21,7 +24,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 
-	// Public auth routes
 	authGroup := r.Group("/auth")
 	{
 		authGroup.POST("/register", s.authHandler.RegisterHandler)
@@ -32,7 +34,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 		authGroup.GET("/google/callback", s.ssoHandler.GoogleCallbackHandler)
 	}
 
-	// Protected auth routes
 	authProtected := r.Group("/auth")
 	authProtected.Use(auth.AuthMiddleware(s.authHandler.GetService()))
 	{
@@ -40,11 +41,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 		authProtected.POST("/logout", s.authHandler.LogoutHandler)
 	}
 
-	contactForm := r.Group("/contact-form")
-	{
-		contactForm.POST("/", s.contactFormHandler.CreateContactForm)
-		contactForm.GET("/", s.contactFormHandler.ListContactForms)
-	}
+	r.POST("/contact-form", s.contactFormHandler.CreateContactForm)
+	r.GET("/contact-form", s.contactFormHandler.ListContactForms)
 
 	r.Static("/swagger", "./docs")
 	r.GET("/docs", func(c *gin.Context) {

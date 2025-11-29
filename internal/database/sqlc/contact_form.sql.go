@@ -104,7 +104,7 @@ func (q *Queries) ListContactForms(ctx context.Context, arg ListContactFormsPara
 const listContactFormsHasNotResponded = `-- name: ListContactFormsHasNotResponded :many
 SELECT id, full_name, email, phone_number, salon_name, subject, message, created_at, answered_at
 FROM contact_form
-WHERE response IS NULL
+WHERE answered_at IS NULL
 ORDER BY created_at DESC OFFSET $1
 LIMIT $2
 `

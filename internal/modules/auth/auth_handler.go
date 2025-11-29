@@ -2,13 +2,13 @@ package auth
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
+	"github.com/parlorhub/api-core/internal/logger"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 )
 
@@ -132,7 +132,7 @@ func (h *AuthHandler) RegisterHandler(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		log.Printf("Error registering user: %v", err)
+		logger.Error("Failed to register user", logger.Err(err), logger.F("email", req.Email))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register user"})
 		return
 	}
@@ -153,7 +153,7 @@ func (h *AuthHandler) LoginHandler(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		log.Printf("Error validating credentials: %v", err)
+		logger.Error("Failed to validate credentials", logger.Err(err), logger.F("email", req.Email))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
 		return
 	}
@@ -166,7 +166,7 @@ func (h *AuthHandler) loginUser(ctx *gin.Context, user sqlc.User, statusCode int
 
 	tokens, err := h.service.CreateSession(ctx.Request.Context(), user, oldToken)
 	if err != nil {
-		log.Printf("Error creating session: %v", err)
+		logger.Error("Failed to create session", logger.Err(err), logger.F("user_id", user.ID))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
@@ -204,7 +204,7 @@ func (h *AuthHandler) LogoutHandler(ctx *gin.Context) {
 	token := GetAccessTokenFromRequest(ctx)
 
 	if err := h.service.Logout(ctx.Request.Context(), userID.(uuid.UUID), token); err != nil {
-		log.Printf("Error during logout: %v", err)
+		logger.Warn("Error during logout", logger.Err(err), logger.F("user_id", userID))
 	}
 
 	ClearAuthCookies(ctx)
@@ -235,7 +235,7 @@ func (h *AuthHandler) RefreshHandler(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		log.Printf("Error refreshing session: %v", err)
+		logger.Error("Failed to refresh session", logger.Err(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to refresh session"})
 		return
 	}
