@@ -1,4 +1,4 @@
-CREATE TYPE user_role AS ENUM ('admin', 'staff', 'solo');
+CREATE TYPE user_role as ENUM('admin', 'owner', 'employee', 'customer');
 CREATE TYPE appointment_status AS ENUM ('pending', 'confirmed', 'cancelled', 'done', 'no-show');
 CREATE TYPE notification_type AS ENUM ('whatsapp', 'email', 'sms');
 CREATE TYPE notification_status AS ENUM ('queued', 'sent', 'failed');
@@ -9,7 +9,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
-    role user_role NOT NULL DEFAULT 'solo',
+    role user_role NOT NULL DEFAULT 'customer',
     salon_id UUID,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
