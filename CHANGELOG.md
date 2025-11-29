@@ -1,3 +1,10 @@
+## [1.5.0](https://github.com/parlorhub/api-core/compare/v1.4.0...v1.5.0) (2025-11-29)
+
+### Features
+
+* added swagger ([1dc33cf](https://github.com/parlorhub/api-core/commit/1dc33cf3f3c4164b5206175ef6997c29b2d27477))
+* added swagger ([4a8bc25](https://github.com/parlorhub/api-core/commit/4a8bc250402e512abb3522ba9c56295e41204719))
+
 ## [1.4.0](https://github.com/parlorhub/api-core/compare/v1.3.0...v1.4.0) (2025-11-28)
 
 ### Features
