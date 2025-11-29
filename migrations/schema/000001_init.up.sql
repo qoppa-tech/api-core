@@ -155,6 +155,7 @@ CREATE INDEX idx_appointments_status ON appointments(status);
 CREATE INDEX idx_notifications_appointment_id ON notifications(appointment_id);
 CREATE INDEX idx_notifications_status ON notifications(status);
 
+-- WARN: THIS MUST BE REMEMBERED DURING DOWN MIGRATION
 -- Create trigger function for updating updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
