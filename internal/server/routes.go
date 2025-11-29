@@ -21,6 +21,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 
+	// Public auth routes
 	authGroup := r.Group("/auth")
 	{
 		authGroup.POST("/register", s.authHandler.RegisterHandler)
@@ -31,6 +32,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 		authGroup.GET("/google/callback", s.ssoHandler.GoogleCallbackHandler)
 	}
 
+	// Protected auth routes
 	authProtected := r.Group("/auth")
 	authProtected.Use(auth.AuthMiddleware(s.authHandler.GetService()))
 	{
