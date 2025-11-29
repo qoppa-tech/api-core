@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/parlorhub/api-core/internal/database/sqlc"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -24,7 +25,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	{
 		auth.POST("/register", s.authHandler.RegisterHandler)
 		auth.POST("/login", s.authHandler.LoginHandler)
-		auth.GET("/me", s.authHandler.MeHandler)
+		auth.GET("/me", s.rbacMiddleware.RBACMiddleware(sqlc.UserRoleCustomer), s.authHandler.MeHandler)
 		auth.POST("/logout", s.authHandler.LogoutHandler)
 
 		auth.GET("/google", s.ssoHandler.GoogleLoginHandler)

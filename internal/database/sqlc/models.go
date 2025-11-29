@@ -191,9 +191,10 @@ func (ns NullNotificationType) Value() (driver.Value, error) {
 type UserRole string
 
 const (
-	UserRoleAdmin UserRole = "admin"
-	UserRoleStaff UserRole = "staff"
-	UserRoleSolo  UserRole = "solo"
+	UserRoleAdmin    UserRole = "admin"
+	UserRoleOwner    UserRole = "owner"
+	UserRoleEmployee UserRole = "employee"
+	UserRoleCustomer UserRole = "customer"
 )
 
 func (e *UserRole) Scan(src interface{}) error {

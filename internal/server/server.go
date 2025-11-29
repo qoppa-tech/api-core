@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/parlorhub/api-core/internal/database"
+	"github.com/parlorhub/api-core/internal/middleware"
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
@@ -21,6 +22,7 @@ type Server struct {
 	db                 database.Service
 	authHandler        *auth.AuthHandler
 	contactFormHandler *contactform.ContactFormHandler
+	rbacMiddleware     *middleware.RbacMiddleware
 	ssoHandler         *sso.SSOHandler
 }
 
