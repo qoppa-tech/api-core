@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/parlorhub/api-core/internal/database/sqlc"
+	"github.com/parlorhub/api-core/internal/modules/auth"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -21,15 +21,23 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 
-	auth := r.Group("/auth")
+	// Public auth routes
+	authGroup := r.Group("/auth")
 	{
-		auth.POST("/register", s.authHandler.RegisterHandler)
-		auth.POST("/login", s.authHandler.LoginHandler)
-		auth.GET("/me", s.rbacMiddleware.RBACMiddleware(sqlc.UserRoleCustomer), s.authHandler.MeHandler)
-		auth.POST("/logout", s.authHandler.LogoutHandler)
+		authGroup.POST("/register", s.authHandler.RegisterHandler)
+		authGroup.POST("/login", s.authHandler.LoginHandler)
+		authGroup.POST("/refresh", s.authHandler.RefreshHandler)
 
-		auth.GET("/google", s.ssoHandler.GoogleLoginHandler)
-		auth.GET("/google/callback", s.ssoHandler.GoogleCallbackHandler)
+		authGroup.GET("/google", s.ssoHandler.GoogleLoginHandler)
+		authGroup.GET("/google/callback", s.ssoHandler.GoogleCallbackHandler)
+	}
+
+	// Protected auth routes
+	authProtected := r.Group("/auth")
+	authProtected.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	{
+		authProtected.GET("/me", s.authHandler.MeHandler)
+		authProtected.POST("/logout", s.authHandler.LogoutHandler)
 	}
 
 	contactForm := r.Group("/contact-form")
