@@ -24,6 +24,7 @@ tmp/
 
 # .env file
 .env
+.env.local
 
 # Node.js
 node_modules/

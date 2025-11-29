@@ -27,6 +27,7 @@ RUN apk --no-cache add ca-certificates && \
 WORKDIR /app
 
 COPY --from=build /app/main /app/main
+COPY --from=build /app/docs /app/docs
 
 RUN chown -R appuser:appuser /app
 
