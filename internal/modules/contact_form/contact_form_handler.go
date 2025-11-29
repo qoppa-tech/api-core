@@ -31,9 +31,9 @@ type FindContactFormParams struct {
 	HasNotResponded bool  `json:"has_not_responded,omitempty"`
 }
 
-func NewContactFormHandler(queries *sqlc.Queries) *ContactFormHandler {
+func NewContactFormHandler(db *sql.DB) *ContactFormHandler {
 	return &ContactFormHandler{
-		Queries: queries,
+		Queries: sqlc.New(db),
 	}
 }
 

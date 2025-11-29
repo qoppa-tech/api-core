@@ -45,7 +45,7 @@ func CompareUserRolePrivileges(userRole1 sqlc.UserRole, userRole2 sqlc.UserRole)
 		return false, err
 	}
 
-	role2integer, err := userRoleToInteger(userRole1)
+	role2integer, err := userRoleToInteger(userRole2)
 	if err != nil {
 		return false, err
 	}
