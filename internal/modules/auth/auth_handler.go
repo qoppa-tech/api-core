@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	helper "github.com/parlorhub/api-core/internal/helper/user"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -77,7 +79,7 @@ type RegisterRequest struct {
 	Password string `json:"password" binding:"required,min=8"`
 	Name     string `json:"name" binding:"required"`
 	Phone    string `json:"phone" binding:"required"`
-	Role     string `json:"role" binding:"omitempty,oneof=admin staff solo"`
+	Role     string `json:"role" binding:"omitempty,oneof=admin owner employee customer"`
 }
 
 type LoginRequest struct {
@@ -159,18 +161,7 @@ func (ah *AuthHandler) RegisterHandler(ctx *gin.Context) {
 		return
 	}
 
-	// TODO: IMPLEMENT SPECIFIC RBAC RULES TO WORKS IN HERE
-	role := sqlc.UserRoleSolo
-	if req.Role != "" {
-		switch req.Role {
-		case "admin":
-			role = sqlc.UserRoleAdmin
-		case "staff":
-			role = sqlc.UserRoleStaff
-		case "solo":
-			role = sqlc.UserRoleSolo
-		}
-	}
+	role := helper.ParseUserRole(req.Role, sqlc.UserRoleCustomer)
 
 	user, err := ah.queries.CreateUser(ctx.Request.Context(), sqlc.CreateUserParams{
 		Email:        req.Email,
