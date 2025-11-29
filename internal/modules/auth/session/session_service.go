@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 const (

@@ -32,17 +32,20 @@ type GoogleUserInfo struct {
 	Picture       string `json:"picture"`
 }
 
-func init() {
-	googleOAuthConfig = &oauth2.Config{
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
+func getGoogleOAuthConfig() *oauth2.Config {
+	if googleOAuthConfig == nil {
+		googleOAuthConfig = &oauth2.Config{
+			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+			RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+			Scopes: []string{
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			},
+			Endpoint: google.Endpoint,
+		}
 	}
+	return googleOAuthConfig
 }
 
 func NewSSOHandler(db *sql.DB, sessionService *session.SessionService) *SSOHandler {
@@ -56,7 +59,7 @@ func NewSSOHandler(db *sql.DB, sessionService *session.SessionService) *SSOHandl
 func (h *SSOHandler) GoogleLoginHandler(ctx *gin.Context) {
 	state := uuid.New().String() // Generate random state
 	// TODO: Store state in Redis for validation
-	url := googleOAuthConfig.AuthCodeURL(state)
+	url := getGoogleOAuthConfig().AuthCodeURL(state)
 	ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -70,7 +73,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	}
 
 	// Exchange code for token
-	token, err := googleOAuthConfig.Exchange(context.Background(), code)
+	token, err := getGoogleOAuthConfig().Exchange(context.Background(), code)
 	if err != nil {
 		log.Printf("Error exchanging code for token: %v", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to exchange token"})

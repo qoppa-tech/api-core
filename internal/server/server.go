@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database"
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
@@ -29,7 +28,6 @@ func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	db := database.New()
 
-	// Create shared session service
 	sessionService, err := session.NewSessionService()
 	if err != nil {
 		log.Printf("Warning: Failed to initialize session service: %v", err)

@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	"golang.org/x/crypto/bcrypt"
@@ -26,24 +26,27 @@ var (
 	jwtSecret     []byte
 	jwtIssuer     string
 	JwtExpiration time.Duration
+	jwtOnce       sync.Once
 )
 
-func init() {
-	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
-	if len(jwtSecret) == 0 {
-		jwtSecret = []byte("default-secret-change-in-production")
-	}
+func initJWTConfig() {
+	jwtOnce.Do(func() {
+		jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+		if len(jwtSecret) == 0 {
+			jwtSecret = []byte("default-secret-change-in-production")
+		}
 
-	jwtIssuer = os.Getenv("JWT_ISSUER")
-	if jwtIssuer == "" {
-		jwtIssuer = "parlor-api"
-	}
+		jwtIssuer = os.Getenv("JWT_ISSUER")
+		if jwtIssuer == "" {
+			jwtIssuer = "parlor-api"
+		}
 
-	expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
-	if expHours == 0 {
-		expHours = 24
-	}
-	JwtExpiration = time.Duration(expHours) * time.Hour
+		expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+		if expHours == 0 {
+			expHours = 24
+		}
+		JwtExpiration = time.Duration(expHours) * time.Hour
+	})
 }
 
 type AuthHandler struct {
@@ -109,6 +112,8 @@ func toUserResponse(user sqlc.User) UserResponse {
 }
 
 func GenerateToken(user sqlc.User) (string, error) {
+	initJWTConfig()
+
 	var salonID *uuid.UUID
 	if user.SalonID.Valid {
 		salonID = &user.SalonID.UUID

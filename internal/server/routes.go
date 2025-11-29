@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -39,6 +38,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}
 
 	r.Static("/swagger", "./docs")
+	r.GET("/docs", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/swagger.html")
+	})
 
 	return r
 }
