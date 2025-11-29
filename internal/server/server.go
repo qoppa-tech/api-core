@@ -35,12 +35,14 @@ func NewServer() *http.Server {
 		log.Printf("Warning: Failed to initialize session service: %v", err)
 	}
 
+	authHandler := auth.NewAuthHandler(db.GetDB(), sessionService)
+
 	NewServer := &Server{
 		port: port,
 
 		db:          db,
-		authHandler: auth.NewAuthHandler(db.GetDB(), sessionService),
-		ssoHandler:  sso.NewSSOHandler(db.GetDB(), sessionService),
+		authHandler: authHandler,
+		ssoHandler:  sso.NewSSOHandler(db.GetDB(), authHandler.GetService()),
 	}
 
 	server := &http.Server{

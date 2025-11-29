@@ -4,62 +4,26 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
-	"sync"
-	"time"
-
-	helper "github.com/parlorhub/api-core/internal/helper/user"
+	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
-	"golang.org/x/crypto/bcrypt"
 )
 
-// TODO: need to add oauth, token cache, rbac
 const (
-	bcryptCost = 12
+	AccessTokenCookieName  = "access_token"
+	RefreshTokenCookieName = "refresh_token"
 )
-
-var (
-	jwtSecret     []byte
-	jwtIssuer     string
-	JwtExpiration time.Duration
-	jwtOnce       sync.Once
-)
-
-func initJWTConfig() {
-	jwtOnce.Do(func() {
-		jwtSecret = []byte(os.Getenv("JWT_SECRET"))
-		if len(jwtSecret) == 0 {
-			jwtSecret = []byte("default-secret-change-in-production")
-		}
-
-		jwtIssuer = os.Getenv("JWT_ISSUER")
-		if jwtIssuer == "" {
-			jwtIssuer = "parlor-api"
-		}
-
-		expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
-		if expHours == 0 {
-			expHours = 24
-		}
-		JwtExpiration = time.Duration(expHours) * time.Hour
-	})
-}
 
 type AuthHandler struct {
-	queries        *sqlc.Queries
-	sessionService *session.SessionService
+	service *AuthService
 }
 
 func NewAuthHandler(db *sql.DB, sessionService *session.SessionService) *AuthHandler {
 	return &AuthHandler{
-		queries:        sqlc.New(db),
-		sessionService: sessionService,
+		service: NewAuthService(db, sessionService),
 	}
 }
 
@@ -86,16 +50,55 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	Token string       `json:"token"`
-	User  UserResponse `json:"user"`
+	User UserResponse `json:"user"`
 }
 
-type Claims struct {
-	UserID  uuid.UUID  `json:"user_id"`
-	Email   string     `json:"email"`
-	Role    string     `json:"role"`
-	SalonID *uuid.UUID `json:"salon_id,omitempty"`
-	jwt.RegisteredClaims
+// SetAuthCookies sets HTTP-only cookies for access and refresh tokens
+func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
+	InitJWTConfig()
+
+	ctx.SetSameSite(http.SameSiteStrictMode)
+	ctx.SetCookie(
+		AccessTokenCookieName,
+		tokens.AccessToken,
+		int(JwtExpiration.Seconds()),
+		"/",
+		CookieDomain,
+		CookieSecure,
+		true,
+	)
+
+	ctx.SetCookie(
+		RefreshTokenCookieName,
+		tokens.RefreshToken,
+		int(RefreshExpiration.Seconds()),
+		"/auth/refresh",
+		CookieDomain,
+		CookieSecure,
+		true,
+	)
+}
+
+// ClearAuthCookies removes auth cookies
+func ClearAuthCookies(ctx *gin.Context) {
+	InitJWTConfig()
+
+	ctx.SetCookie(AccessTokenCookieName, "", -1, "/", CookieDomain, CookieSecure, true)
+	ctx.SetCookie(RefreshTokenCookieName, "", -1, "/auth/refresh", CookieDomain, CookieSecure, true)
+}
+
+// GetAccessTokenFromRequest extracts access token from cookie or Authorization header
+func GetAccessTokenFromRequest(ctx *gin.Context) string {
+	if token, err := ctx.Cookie(AccessTokenCookieName); err == nil && token != "" {
+		return token
+	}
+
+	authHeader := ctx.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+
+	return ""
 }
 
 func toUserResponse(user sqlc.User) UserResponse {
@@ -113,139 +116,73 @@ func toUserResponse(user sqlc.User) UserResponse {
 	}
 }
 
-func GenerateToken(user sqlc.User) (string, error) {
-	initJWTConfig()
-
-	var salonID *uuid.UUID
-	if user.SalonID.Valid {
-		salonID = &user.SalonID.UUID
-	}
-
-	claims := Claims{
-		UserID:  user.ID,
-		Email:   user.Email,
-		Role:    string(user.Role),
-		SalonID: salonID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(JwtExpiration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    jwtIssuer,
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
-}
-
-func (ah *AuthHandler) RegisterHandler(ctx *gin.Context) {
+func (h *AuthHandler) RegisterHandler(ctx *gin.Context) {
 	var req RegisterRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	existingUser, err := ah.queries.GetUserByEmail(ctx.Request.Context(), req.Email)
-	if err == nil && existingUser.ID != uuid.Nil {
+	user, err := h.service.Register(ctx.Request.Context(), req.Email, req.Password, req.Name, req.Phone, req.Role)
+	if err == ErrUserExists {
 		ctx.JSON(http.StatusConflict, gin.H{"error": "user already exists"})
 		return
 	}
-	if err != nil && err != sql.ErrNoRows {
-		log.Printf("Error checking existing user: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
-		return
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcryptCost)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		log.Printf("Error registering user: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register user"})
 		return
 	}
 
-	role := helper.ParseUserRole(req.Role, sqlc.UserRoleCustomer)
-
-	user, err := ah.queries.CreateUser(ctx.Request.Context(), sqlc.CreateUserParams{
-		Email:        req.Email,
-		PasswordHash: string(hashedPassword),
-		Name:         req.Name,
-		Phone:        req.Phone,
-		Role:         role,
-		SalonID:      uuid.NullUUID{Valid: false},
-	})
-	if err != nil {
-		log.Printf("Error creating user: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
-		return
-	}
-
-	token, err := GenerateToken(user)
-	if err != nil {
-		log.Printf("Error generating token: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
-	}
-
-	if err := ah.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), token, JwtExpiration); err != nil {
-		log.Printf("Error storing token in Redis: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store token"})
-		return
-	}
-
-	ctx.JSON(http.StatusCreated, AuthResponse{
-		Token: token,
-		User:  toUserResponse(user),
-	})
+	h.loginUser(ctx, user, http.StatusCreated)
 }
 
-func (ah *AuthHandler) LoginHandler(ctx *gin.Context) {
+func (h *AuthHandler) LoginHandler(ctx *gin.Context) {
 	var req LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := ah.queries.GetUserByEmail(ctx.Request.Context(), req.Email)
-	if err != nil {
+	user, err := h.service.ValidateCredentials(ctx.Request.Context(), req.Email, req.Password)
+	if err == ErrInvalidCredentials {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-		return
-	}
-
-	token, err := GenerateToken(user)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		log.Printf("Error validating credentials: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
 		return
 	}
 
-	if err := ah.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), token, JwtExpiration); err != nil {
-		log.Printf("Error storing token in Redis: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store token"})
+	h.loginUser(ctx, user, http.StatusOK)
+}
+
+func (h *AuthHandler) loginUser(ctx *gin.Context, user sqlc.User, statusCode int) {
+	oldToken := GetAccessTokenFromRequest(ctx)
+
+	tokens, err := h.service.CreateSession(ctx.Request.Context(), user, oldToken)
+	if err != nil {
+		log.Printf("Error creating session: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
 
-	_, _ = ah.queries.CreateSession(ctx.Request.Context(), sqlc.CreateSessionParams{
-		UserID:    user.ID,
-		Token:     token,
-		ExpiresAt: time.Now().Add(JwtExpiration),
-	})
+	SetAuthCookies(ctx, tokens)
 
-	ctx.JSON(http.StatusOK, AuthResponse{
-		Token: token,
-		User:  toUserResponse(user),
+	ctx.JSON(statusCode, AuthResponse{
+		User: toUserResponse(user),
 	})
 }
 
-func (ah *AuthHandler) MeHandler(ctx *gin.Context) {
+func (h *AuthHandler) MeHandler(ctx *gin.Context) {
 	userID, exists := ctx.Get("user_id")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	user, err := ah.queries.GetUserByID(ctx.Request.Context(), userID.(uuid.UUID))
+	user, err := h.service.GetUserByID(ctx.Request.Context(), userID.(uuid.UUID))
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
@@ -254,29 +191,60 @@ func (ah *AuthHandler) MeHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, toUserResponse(user))
 }
 
-func (ah *AuthHandler) LogoutHandler(ctx *gin.Context) {
+func (h *AuthHandler) LogoutHandler(ctx *gin.Context) {
 	userID, exists := ctx.Get("user_id")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	token := ctx.GetHeader("Authorization")
-	if len(token) > 7 && token[:7] == "Bearer " {
-		token = token[7:]
-		_ = ah.sessionService.BlacklistToken(ctx.Request.Context(), token, JwtExpiration)
+	token := GetAccessTokenFromRequest(ctx)
+
+	if err := h.service.Logout(ctx.Request.Context(), userID.(uuid.UUID), token); err != nil {
+		log.Printf("Error during logout: %v", err)
 	}
 
-	if err := ah.sessionService.DeleteAllUserTokens(ctx.Request.Context(), userID.(uuid.UUID).String()); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete tokens"})
-		return
-	}
-
-	err := ah.queries.DeleteUserSessions(ctx.Request.Context(), userID.(uuid.UUID))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to logout"})
-		return
-	}
+	ClearAuthCookies(ctx)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
+}
+
+func (h *AuthHandler) RefreshHandler(ctx *gin.Context) {
+	refreshToken, err := ctx.Cookie(RefreshTokenCookieName)
+	if err != nil || refreshToken == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token not found"})
+		return
+	}
+
+	oldAccessToken := GetAccessTokenFromRequest(ctx)
+	if oldAccessToken == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "access token not found"})
+		return
+	}
+
+	user, tokens, err := h.service.RefreshSession(ctx.Request.Context(), oldAccessToken, refreshToken)
+	if err == ErrInvalidToken || err == ErrInvalidRefreshToken {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+	if err == ErrUserNotFound {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("Error refreshing session: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to refresh session"})
+		return
+	}
+
+	SetAuthCookies(ctx, tokens)
+
+	ctx.JSON(http.StatusOK, AuthResponse{
+		User: toUserResponse(user),
+	})
+}
+
+// GetService returns the auth service for use by other modules (e.g., SSO)
+func (h *AuthHandler) GetService() *AuthService {
+	return h.service
 }

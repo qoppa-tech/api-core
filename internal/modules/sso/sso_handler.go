@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
 	"github.com/parlorhub/api-core/internal/modules/auth"
-	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -20,8 +19,8 @@ import (
 var googleOAuthConfig *oauth2.Config
 
 type SSOHandler struct {
-	queries        *sqlc.Queries
-	sessionService *session.SessionService
+	queries     *sqlc.Queries
+	authService *auth.AuthService
 }
 
 type GoogleUserInfo struct {
@@ -48,16 +47,16 @@ func getGoogleOAuthConfig() *oauth2.Config {
 	return googleOAuthConfig
 }
 
-func NewSSOHandler(db *sql.DB, sessionService *session.SessionService) *SSOHandler {
+func NewSSOHandler(db *sql.DB, authService *auth.AuthService) *SSOHandler {
 	return &SSOHandler{
-		queries:        sqlc.New(db),
-		sessionService: sessionService,
+		queries:     sqlc.New(db),
+		authService: authService,
 	}
 }
 
 // GoogleLoginHandler redirects to Google OAuth consent page
 func (h *SSOHandler) GoogleLoginHandler(ctx *gin.Context) {
-	state := uuid.New().String() // Generate random state
+	state := uuid.New().String()
 	// TODO: Store state in Redis for validation
 	url := getGoogleOAuthConfig().AuthCodeURL(state)
 	ctx.Redirect(http.StatusTemporaryRedirect, url)
@@ -65,7 +64,6 @@ func (h *SSOHandler) GoogleLoginHandler(ctx *gin.Context) {
 
 // GoogleCallbackHandler handles the OAuth callback from Google
 func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
-	// Get authorization code
 	code := ctx.Query("code")
 	if code == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "code not found"})
@@ -106,7 +104,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 				PasswordHash: "", // No password for SSO users
 				Name:         userInfo.Name,
 				Phone:        "",
-				Role:         sqlc.UserRoleSolo,
+				Role:         sqlc.UserRoleCustomer,
 				SalonID:      uuid.NullUUID{Valid: false},
 			})
 			if err != nil {
@@ -161,22 +159,21 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 		}
 	}
 
-	// Generate JWT token using auth package
-	jwtToken, err := auth.GenerateToken(user)
+	// Create session using auth service
+	oldToken := auth.GetAccessTokenFromRequest(ctx)
+	tokens, err := h.authService.CreateSession(ctx.Request.Context(), user, oldToken)
 	if err != nil {
-		log.Printf("Error generating token: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		log.Printf("Error creating session: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
 
-	// Store token in Redis if session service is available
-	if h.sessionService != nil {
-		_ = h.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), jwtToken, auth.JwtExpiration)
-	}
+	// Set HTTP-only cookies
+	auth.SetAuthCookies(ctx, tokens)
 
-	// Redirect to frontend with token
+	// Redirect to frontend
 	frontendURL := os.Getenv("FRONTEND_URL")
-	ctx.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback?token="+jwtToken)
+	ctx.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback")
 }
 
 func getGoogleUserInfo(accessToken string) (*GoogleUserInfo, error) {
