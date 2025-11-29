@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/parlorhub/api-core/compare/v1.4.0...v1.4.1) (2025-11-29)
+
+### Bug Fixes
+
+* docker-compose and migrations down fixed ([ade35e0](https://github.com/parlorhub/api-core/commit/ade35e0dddc01d75d5245ee8fbb8ff2674628eeb))
+
 ## [1.4.0](https://github.com/parlorhub/api-core/compare/v1.3.0...v1.4.0) (2025-11-28)
 
 ### Features
