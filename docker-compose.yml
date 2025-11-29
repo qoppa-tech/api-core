@@ -9,22 +9,6 @@ services:
     restart: unless-stopped
     ports:
       - ${PORT}:${PORT}
-    environment:
-      APP_ENV: ${APP_ENV}
-      PORT: ${PORT}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_SCHEMA: ${DB_SCHEMA}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ISSUER: ${JWT_ISSUER}
-      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: ${REDIS_DB}
     depends_on:
       psql:
         condition: service_healthy
@@ -35,12 +19,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      POSTGRES_DB: ${DB_DATABASE}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_SCHEMA: ${DB_SCHEMA}
-      POSTGRES_PORT: ${DB_PORT}
     ports:
       - "${DB_PORT}:${DB_PORT}"
     volumes:
@@ -76,8 +54,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      - REDIS_PORT=${REDIS_PORT}
     ports:
       - ${REDIS_PORT}:${REDIS_PORT}
     healthcheck:
