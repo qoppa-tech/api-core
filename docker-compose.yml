@@ -4,10 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
       target: prod
-      cache_from:
-        - type=local,src=/tmp/.buildx-cache
-      cache_to:
-        - type=local,dest=/tmp/.buildx-cache-new,mode=max
     env_file:
       - .env
     restart: unless-stopped
