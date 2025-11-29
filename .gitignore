@@ -39,6 +39,5 @@ main
 *.log
 
 # Nginx
-/nginx/access.log
-/nginx/error.log
-/nginx/storage/
+config/nginx/storage/
+config/nginx/logs/
