@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,7 +11,9 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database"
 	"github.com/parlorhub/api-core/internal/modules/auth"
+	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
+	"github.com/parlorhub/api-core/internal/modules/sso"
 )
 
 type Server struct {
@@ -19,16 +22,25 @@ type Server struct {
 	db                 database.Service
 	authHandler        *auth.AuthHandler
 	contactFormHandler *contactform.ContactFormHandler
+	ssoHandler         *sso.SSOHandler
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	db := database.New()
+
+	// Create shared session service
+	sessionService, err := session.NewSessionService()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize session service: %v", err)
+	}
+
 	NewServer := &Server{
 		port: port,
 
 		db:          db,
-		authHandler: auth.NewAuthHandler(db.GetDB()),
+		authHandler: auth.NewAuthHandler(db.GetDB(), sessionService),
+		ssoHandler:  sso.NewSSOHandler(db.GetDB(), sessionService),
 	}
 
 	server := &http.Server{
