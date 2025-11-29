@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -27,6 +26,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 		auth.POST("/login", s.authHandler.LoginHandler)
 		auth.GET("/me", s.authHandler.MeHandler)
 		auth.POST("/logout", s.authHandler.LogoutHandler)
+
+		auth.GET("/google", s.ssoHandler.GoogleLoginHandler)
+		auth.GET("/google/callback", s.ssoHandler.GoogleCallbackHandler)
 	}
 
 	contactForm := r.Group("/contact-form")
@@ -34,6 +36,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 		contactForm.POST("/", s.contactFormHandler.CreateContactForm)
 		contactForm.GET("/", s.contactFormHandler.ListContactForms)
 	}
+
+	r.Static("/swagger", "./docs")
+	r.GET("/docs", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/swagger.html")
+	})
 
 	return r
 }

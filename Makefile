@@ -1,8 +1,12 @@
-ifneq (,$(wildcard ./.env))
+ifneq (,$(wildcard ./.env.local))
+	include .env.local
+	export
+else ifneq (,$(wildcard ./.env))
 	include .env
 	export
-	DB_URL=postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_DATABASE)?sslmode=disable
 endif
+
+DB_URL=postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_DATABASE)?sslmode=disable
 
 all: build test
 

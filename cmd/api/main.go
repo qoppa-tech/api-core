@@ -5,12 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/parlorhub/api-core/internal/server"
 )
+
+func init() {
+	if _, err := os.Stat(".env.local"); err == nil {
+		_ = godotenv.Overload(".env.local")
+		log.Println("Loaded .env.local")
+	}
+}
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

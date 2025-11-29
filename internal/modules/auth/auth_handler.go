@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	"golang.org/x/crypto/bcrypt"
@@ -25,25 +25,28 @@ const (
 var (
 	jwtSecret     []byte
 	jwtIssuer     string
-	jwtExpiration time.Duration
+	JwtExpiration time.Duration
+	jwtOnce       sync.Once
 )
 
-func init() {
-	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
-	if len(jwtSecret) == 0 {
-		jwtSecret = []byte("default-secret-change-in-production")
-	}
+func initJWTConfig() {
+	jwtOnce.Do(func() {
+		jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+		if len(jwtSecret) == 0 {
+			jwtSecret = []byte("default-secret-change-in-production")
+		}
 
-	jwtIssuer = os.Getenv("JWT_ISSUER")
-	if jwtIssuer == "" {
-		jwtIssuer = "parlor-api"
-	}
+		jwtIssuer = os.Getenv("JWT_ISSUER")
+		if jwtIssuer == "" {
+			jwtIssuer = "parlor-api"
+		}
 
-	expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
-	if expHours == 0 {
-		expHours = 24
-	}
-	jwtExpiration = time.Duration(expHours) * time.Hour
+		expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+		if expHours == 0 {
+			expHours = 24
+		}
+		JwtExpiration = time.Duration(expHours) * time.Hour
+	})
 }
 
 type AuthHandler struct {
@@ -51,12 +54,7 @@ type AuthHandler struct {
 	sessionService *session.SessionService
 }
 
-func NewAuthHandler(db *sql.DB) *AuthHandler {
-	sessionService, err := session.NewSessionService()
-	if err != nil {
-		panic("failed to initialize session service: " + err.Error())
-	}
-
+func NewAuthHandler(db *sql.DB, sessionService *session.SessionService) *AuthHandler {
 	return &AuthHandler{
 		queries:        sqlc.New(db),
 		sessionService: sessionService,
@@ -113,7 +111,9 @@ func toUserResponse(user sqlc.User) UserResponse {
 	}
 }
 
-func generateToken(user sqlc.User) (string, error) {
+func GenerateToken(user sqlc.User) (string, error) {
+	initJWTConfig()
+
 	var salonID *uuid.UUID
 	if user.SalonID.Valid {
 		salonID = &user.SalonID.UUID
@@ -125,7 +125,7 @@ func generateToken(user sqlc.User) (string, error) {
 		Role:    string(user.Role),
 		SalonID: salonID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtExpiration)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(JwtExpiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    jwtIssuer,
 		},
@@ -186,14 +186,14 @@ func (ah *AuthHandler) RegisterHandler(ctx *gin.Context) {
 		return
 	}
 
-	token, err := generateToken(user)
+	token, err := GenerateToken(user)
 	if err != nil {
 		log.Printf("Error generating token: %v", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
 	}
 
-	if err := ah.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), token, jwtExpiration); err != nil {
+	if err := ah.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), token, JwtExpiration); err != nil {
 		log.Printf("Error storing token in Redis: %v", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store token"})
 		return
@@ -223,13 +223,13 @@ func (ah *AuthHandler) LoginHandler(ctx *gin.Context) {
 		return
 	}
 
-	token, err := generateToken(user)
+	token, err := GenerateToken(user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
 	}
 
-	if err := ah.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), token, jwtExpiration); err != nil {
+	if err := ah.sessionService.StoreToken(ctx.Request.Context(), user.ID.String(), token, JwtExpiration); err != nil {
 		log.Printf("Error storing token in Redis: %v", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store token"})
 		return
@@ -238,7 +238,7 @@ func (ah *AuthHandler) LoginHandler(ctx *gin.Context) {
 	_, _ = ah.queries.CreateSession(ctx.Request.Context(), sqlc.CreateSessionParams{
 		UserID:    user.ID,
 		Token:     token,
-		ExpiresAt: time.Now().Add(jwtExpiration),
+		ExpiresAt: time.Now().Add(JwtExpiration),
 	})
 
 	ctx.JSON(http.StatusOK, AuthResponse{
@@ -273,7 +273,7 @@ func (ah *AuthHandler) LogoutHandler(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if len(token) > 7 && token[:7] == "Bearer " {
 		token = token[7:]
-		_ = ah.sessionService.BlacklistToken(ctx.Request.Context(), token, jwtExpiration)
+		_ = ah.sessionService.BlacklistToken(ctx.Request.Context(), token, JwtExpiration)
 	}
 
 	if err := ah.sessionService.DeleteAllUserTokens(ctx.Request.Context(), userID.(uuid.UUID).String()); err != nil {
