@@ -18,6 +18,8 @@ tags:
     description: Single Sign-On (OAuth2) endpoints
   - name: Contact Form
     description: Contact form endpoints
+  - name: Onboarding
+    description: User onboarding endpoints
 
 paths:
   /health:
@@ -188,6 +190,44 @@ paths:
                 items:
                   $ref: '#/components/schemas/ContactFormResponse'
 
+  /onboarding:
+    get:
+      tags:
+        - Onboarding
+      summary: Get onboarding steps and user progress
+      description: Returns all onboarding steps with their options and the user's current progress
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Onboarding information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProgressResponse'
+        '401':
+          description: Unauthorized
+    post:
+      tags:
+        - Onboarding
+      summary: Save onboarding selections
+      description: Saves the user's onboarding selections and tracks progress
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveOnboardingRequest'
+      responses:
+        '200':
+          description: Onboarding selections saved successfully
+        '400':
+          description: Bad request - invalid input
+        '401':
+          description: Unauthorized
+
 components:
   securitySchemes:
     bearerAuth:
@@ -258,11 +298,18 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, owner, employee, solo]
+          enum: [admin, owner, employee, customer]
         salon_id:
           type: string
           format: uuid
           nullable: true
+        onboarding_completed:
+          type: boolean
+          description: Whether the user has completed onboarding
+        current_onboarding_step:
+          type: integer
+          nullable: true
+          description: The user's current onboarding step ID
         created_at:
           type: string
           format: date-time
@@ -329,3 +376,85 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    OnboardingStep:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingOption'
+
+    OnboardingOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        option_index:
+          type: integer
+          example: 1
+
+    UserSelection:
+      type: object
+      properties:
+        step_id:
+          type: integer
+          example: 2
+        option_indices:
+          type: array
+          items:
+            type: integer
+          example: [1, 3, 6]
+
+    OnboardingProgressResponse:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingStep'
+        user_selections:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSelection'
+        current_step:
+          type: integer
+          nullable: true
+          example: 3
+        completed:
+          type: boolean
+          example: false
+
+    OnboardingSelectionRequest:
+      type: object
+      required:
+        - step_id
+        - option_indices
+      properties:
+        step_id:
+          type: integer
+          example: 2
+        option_indices:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          example: [1, 3, 6]
+
+    SaveOnboardingRequest:
+      type: object
+      required:
+        - selections
+      properties:
+        selections:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingSelectionRequest'
+          minItems: 1
+        completed:
+          type: boolean
+          example: true
+          description: Whether the user has completed all onboarding steps

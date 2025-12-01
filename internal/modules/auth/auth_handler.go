@@ -28,12 +28,14 @@ func NewAuthHandler(db *sql.DB, sessionService *session.SessionService) *AuthHan
 }
 
 type UserResponse struct {
-	ID      uuid.UUID  `json:"id"`
-	Email   string     `json:"email"`
-	Name    string     `json:"name"`
-	Phone   string     `json:"phone"`
-	Role    string     `json:"role"`
-	SalonID *uuid.UUID `json:"salon_id,omitempty"`
+	ID                    uuid.UUID  `json:"id"`
+	Email                 string     `json:"email"`
+	Name                  string     `json:"name"`
+	Phone                 string     `json:"phone"`
+	Role                  string     `json:"role"`
+	SalonID               *uuid.UUID `json:"salon_id,omitempty"`
+	OnboardingCompleted   bool       `json:"onboarding_completed"`
+	CurrentOnboardingStep *int32     `json:"current_onboarding_step,omitempty"`
 }
 
 type RegisterRequest struct {
@@ -57,8 +59,8 @@ type AuthResponse struct {
 func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 	InitJWTConfig()
 
-	// Access token cookie - short-lived
-	ctx.SetSameSite(http.SameSiteLaxMode)
+	// Access token cookie - short-lived, strict mode for CSRF protection
+	ctx.SetSameSite(http.SameSiteStrictMode)
 	ctx.SetCookie(
 		AccessTokenCookieName,
 		tokens.AccessToken,
@@ -69,12 +71,12 @@ func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 		true, // httpOnly
 	)
 
-	// Refresh token cookie - long-lived, same path so it's always sent
+	// Refresh token cookie - long-lived, only sent to /auth/refresh endpoint
 	ctx.SetCookie(
 		RefreshTokenCookieName,
 		tokens.RefreshToken,
 		int(RefreshExpiration.Seconds()),
-		"/",
+		"/auth/refresh", // Only sent to refresh endpoint
 		CookieDomain,
 		CookieSecure,
 		true, // httpOnly
@@ -85,9 +87,9 @@ func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 func ClearAuthCookies(ctx *gin.Context) {
 	InitJWTConfig()
 
-	ctx.SetSameSite(http.SameSiteLaxMode)
+	ctx.SetSameSite(http.SameSiteStrictMode)
 	ctx.SetCookie(AccessTokenCookieName, "", -1, "/", CookieDomain, CookieSecure, true)
-	ctx.SetCookie(RefreshTokenCookieName, "", -1, "/", CookieDomain, CookieSecure, true)
+	ctx.SetCookie(RefreshTokenCookieName, "", -1, "/auth/refresh", CookieDomain, CookieSecure, true)
 }
 
 // GetAccessTokenFromRequest extracts access token from cookie or Authorization header
@@ -109,13 +111,21 @@ func toUserResponse(user sqlc.User) UserResponse {
 	if user.SalonID.Valid {
 		salonID = &user.SalonID.UUID
 	}
+
+	var currentStep *int32
+	if user.CurrentOnboardingStepID.Valid {
+		currentStep = &user.CurrentOnboardingStepID.Int32
+	}
+
 	return UserResponse{
-		ID:      user.ID,
-		Email:   user.Email,
-		Name:    user.Name,
-		Phone:   user.Phone,
-		Role:    string(user.Role),
-		SalonID: salonID,
+		ID:                    user.ID,
+		Email:                 user.Email,
+		Name:                  user.Name,
+		Phone:                 user.Phone,
+		Role:                  string(user.Role),
+		SalonID:               salonID,
+		OnboardingCompleted:   user.OnboardingCompletedAt.Valid,
+		CurrentOnboardingStep: currentStep,
 	}
 }
 

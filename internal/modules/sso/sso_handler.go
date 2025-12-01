@@ -54,15 +54,12 @@ func NewSSOHandler(db *sql.DB, authService *auth.AuthService) *SSOHandler {
 	}
 }
 
-// GoogleLoginHandler redirects to Google OAuth consent page
 func (h *SSOHandler) GoogleLoginHandler(ctx *gin.Context) {
 	state := uuid.New().String()
-	// TODO: Store state in Redis for validation
 	url := getGoogleOAuthConfig().AuthCodeURL(state)
 	ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-// GoogleCallbackHandler handles the OAuth callback from Google
 func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	code := ctx.Query("code")
 	if code == "" {
@@ -70,7 +67,6 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Exchange code for token
 	token, err := getGoogleOAuthConfig().Exchange(context.Background(), code)
 	if err != nil {
 		logger.Error("Failed to exchange code for token", logger.Err(err))
@@ -78,7 +74,6 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Get user info from Google
 	userInfo, err := getGoogleUserInfo(token.AccessToken)
 	if err != nil {
 		logger.Error("Failed to get user info from Google", logger.Err(err))
@@ -86,22 +81,21 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Check if SSO record exists
 	ssoRecord, err := h.queries.GetSSOByProvider(ctx.Request.Context(), sqlc.GetSSOByProviderParams{
 		Provider:       "google",
 		ProviderUserID: userInfo.ID,
 	})
 
 	var user sqlc.User
+	isNewUser := false
 
 	if err == sql.ErrNoRows {
-		// Check if user with this email exists
 		existingUser, err := h.queries.GetUserByEmail(ctx.Request.Context(), userInfo.Email)
 		if err == sql.ErrNoRows {
-			// Create new user
+			isNewUser = true
 			user, err = h.queries.CreateUser(ctx.Request.Context(), sqlc.CreateUserParams{
 				Email:        userInfo.Email,
-				PasswordHash: "", // No password for SSO users
+				PasswordHash: "",
 				Name:         userInfo.Name,
 				Phone:        "",
 				Role:         sqlc.UserRoleCustomer,
@@ -120,14 +114,10 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 			user = existingUser
 		}
 
-		// Create SSO record
 		_, err = h.queries.CreateSSO(ctx.Request.Context(), sqlc.CreateSSOParams{
 			UserID:         user.ID,
 			Provider:       "google",
 			ProviderUserID: userInfo.ID,
-			AccessToken:    sql.NullString{String: token.AccessToken, Valid: true},
-			RefreshToken:   sql.NullString{String: token.RefreshToken, Valid: token.RefreshToken != ""},
-			ExpiresAt:      sql.NullTime{Time: token.Expiry, Valid: !token.Expiry.IsZero()},
 		})
 		if err != nil {
 			logger.Error("Failed to create SSO record", logger.Err(err), logger.F("provider", "google"), logger.F("user_id", user.ID))
@@ -139,7 +129,6 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	} else {
-		// SSO record exists, get user
 		user, err = h.queries.GetUserByID(ctx.Request.Context(), ssoRecord.UserID)
 		if err != nil {
 			logger.Error("Failed to get user", logger.Err(err), logger.F("user_id", ssoRecord.UserID))
@@ -147,19 +136,8 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 			return
 		}
 
-		// Update SSO tokens
-		_, err = h.queries.UpdateSSOTokens(ctx.Request.Context(), sqlc.UpdateSSOTokensParams{
-			ID:           ssoRecord.ID,
-			AccessToken:  sql.NullString{String: token.AccessToken, Valid: true},
-			RefreshToken: sql.NullString{String: token.RefreshToken, Valid: token.RefreshToken != ""},
-			ExpiresAt:    sql.NullTime{Time: token.Expiry, Valid: !token.Expiry.IsZero()},
-		})
-		if err != nil {
-			logger.Warn("Failed to update SSO tokens", logger.Err(err), logger.F("sso_id", ssoRecord.ID))
-		}
 	}
 
-	// Create session using auth service
 	oldToken := auth.GetAccessTokenFromRequest(ctx)
 	tokens, err := h.authService.CreateSession(ctx.Request.Context(), user, oldToken)
 	if err != nil {
@@ -168,12 +146,14 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Set HTTP-only cookies
 	auth.SetAuthCookies(ctx, tokens)
 
-	// Redirect to frontend
 	frontendURL := os.Getenv("FRONTEND_URL")
-	ctx.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback")
+	redirectURL := frontendURL + "/auth/callback"
+	if isNewUser {
+		redirectURL += "?newUser=true"
+	}
+	ctx.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 
 func getGoogleUserInfo(accessToken string) (*GoogleUserInfo, error) {

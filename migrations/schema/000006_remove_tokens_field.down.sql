@@ -1,0 +1,3 @@
+ALTER TABLE sso ADD COLUMN access_token TEXT;
+ALTER TABLE sso ADD COLUMN refresh_token TEXT;
+ALTER TABLE sso ADD COLUMN expires_at TIMESTAMPTZ;

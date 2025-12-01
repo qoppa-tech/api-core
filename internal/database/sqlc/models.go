@@ -282,6 +282,17 @@ type Notification struct {
 	CreatedAt     time.Time          `json:"created_at"`
 }
 
+type OnboardingOption struct {
+	ID          int32     `json:"id"`
+	StepID      int32     `json:"step_id"`
+	OptionIndex int32     `json:"option_index"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type OnboardingStep struct {
+	ID int32 `json:"id"`
+}
+
 type Professional struct {
 	ID        uuid.UUID      `json:"id"`
 	UserID    uuid.UUID      `json:"user_id"`
@@ -307,6 +318,14 @@ type Salon struct {
 	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
+type SalonOnboardingSelection struct {
+	SalonID     uuid.UUID     `json:"salon_id"`
+	StepID      int32         `json:"step_id"`
+	OptionIndex int32         `json:"option_index"`
+	ChosenAt    time.Time     `json:"chosen_at"`
+	UserID      uuid.NullUUID `json:"user_id"`
+}
+
 type Service struct {
 	ID             uuid.UUID     `json:"id"`
 	SalonID        uuid.UUID     `json:"salon_id"`
@@ -319,25 +338,24 @@ type Service struct {
 }
 
 type Sso struct {
-	ID             uuid.UUID      `json:"id"`
-	UserID         uuid.UUID      `json:"user_id"`
-	Provider       string         `json:"provider"`
-	ProviderUserID string         `json:"provider_user_id"`
-	AccessToken    sql.NullString `json:"access_token"`
-	RefreshToken   sql.NullString `json:"refresh_token"`
-	ExpiresAt      sql.NullTime   `json:"expires_at"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID             uuid.UUID `json:"id"`
+	UserID         uuid.UUID `json:"user_id"`
+	Provider       string    `json:"provider"`
+	ProviderUserID string    `json:"provider_user_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type User struct {
-	ID           uuid.UUID     `json:"id"`
-	Email        string        `json:"email"`
-	PasswordHash string        `json:"password_hash"`
-	Name         string        `json:"name"`
-	Phone        string        `json:"phone"`
-	Role         UserRole      `json:"role"`
-	SalonID      uuid.NullUUID `json:"salon_id"`
-	CreatedAt    time.Time     `json:"created_at"`
-	UpdatedAt    time.Time     `json:"updated_at"`
+	ID                      uuid.UUID     `json:"id"`
+	Email                   string        `json:"email"`
+	PasswordHash            string        `json:"password_hash"`
+	Name                    string        `json:"name"`
+	Phone                   string        `json:"phone"`
+	Role                    UserRole      `json:"role"`
+	SalonID                 uuid.NullUUID `json:"salon_id"`
+	CreatedAt               time.Time     `json:"created_at"`
+	UpdatedAt               time.Time     `json:"updated_at"`
+	CurrentOnboardingStepID sql.NullInt32 `json:"current_onboarding_step_id"`
+	OnboardingCompletedAt   sql.NullTime  `json:"onboarding_completed_at"`
 }
