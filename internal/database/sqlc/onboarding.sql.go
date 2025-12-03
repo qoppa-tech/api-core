@@ -30,18 +30,28 @@ func (q *Queries) CompleteUserOnboarding(ctx context.Context, arg CompleteUserOn
 	return err
 }
 
-const deleteUserOnboardingSelections = `-- name: DeleteUserOnboardingSelections :exec
+const deleteAllUserOnboardingSelections = `-- name: DeleteAllUserOnboardingSelections :exec
+DELETE FROM salon_onboarding_selection
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteAllUserOnboardingSelections(ctx context.Context, userID uuid.NullUUID) error {
+	_, err := q.db.ExecContext(ctx, deleteAllUserOnboardingSelections, userID)
+	return err
+}
+
+const deleteUserOnboardingSelectionsByStep = `-- name: DeleteUserOnboardingSelectionsByStep :exec
 DELETE FROM salon_onboarding_selection
 WHERE user_id = $1 AND step_id = $2
 `
 
-type DeleteUserOnboardingSelectionsParams struct {
+type DeleteUserOnboardingSelectionsByStepParams struct {
 	UserID uuid.NullUUID `json:"user_id"`
 	StepID int32         `json:"step_id"`
 }
 
-func (q *Queries) DeleteUserOnboardingSelections(ctx context.Context, arg DeleteUserOnboardingSelectionsParams) error {
-	_, err := q.db.ExecContext(ctx, deleteUserOnboardingSelections, arg.UserID, arg.StepID)
+func (q *Queries) DeleteUserOnboardingSelectionsByStep(ctx context.Context, arg DeleteUserOnboardingSelectionsByStepParams) error {
+	_, err := q.db.ExecContext(ctx, deleteUserOnboardingSelectionsByStep, arg.UserID, arg.StepID)
 	return err
 }
 
@@ -173,6 +183,19 @@ func (q *Queries) GetUserOnboardingSelections(ctx context.Context, userID uuid.N
 		return nil, err
 	}
 	return items, nil
+}
+
+const resetUserOnboarding = `-- name: ResetUserOnboarding :exec
+UPDATE users
+SET current_onboarding_step_id = NULL,
+    onboarding_completed_at = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) ResetUserOnboarding(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, resetUserOnboarding, id)
+	return err
 }
 
 const saveOnboardingSelection = `-- name: SaveOnboardingSelection :exec

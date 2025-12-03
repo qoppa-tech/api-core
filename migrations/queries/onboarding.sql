@@ -26,9 +26,13 @@ INSERT INTO salon_onboarding_selection (
     $1, $2, $3, $4
 ) ON CONFLICT (salon_id, step_id, option_index) DO NOTHING;
 
--- name: DeleteUserOnboardingSelections :exec
+-- name: DeleteUserOnboardingSelectionsByStep :exec
 DELETE FROM salon_onboarding_selection
 WHERE user_id = $1 AND step_id = $2;
+
+-- name: DeleteAllUserOnboardingSelections :exec
+DELETE FROM salon_onboarding_selection
+WHERE user_id = $1;
 
 -- name: UpdateUserOnboardingStep :exec
 UPDATE users
@@ -40,5 +44,12 @@ WHERE id = $1;
 UPDATE users
 SET current_onboarding_step_id = $2,
     onboarding_completed_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1;
+
+-- name: ResetUserOnboarding :exec
+UPDATE users
+SET current_onboarding_step_id = NULL,
+    onboarding_completed_at = NULL,
     updated_at = NOW()
 WHERE id = $1;

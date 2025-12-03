@@ -10,7 +10,6 @@ import (
 	textTemplate "text/template"
 )
 
-// EmailManager handles email template loading and rendering
 type EmailManager struct {
 	EmailTemplateFolder string
 	TextCache           map[string]*textTemplate.Template
@@ -18,7 +17,6 @@ type EmailManager struct {
 	mu                  sync.RWMutex
 }
 
-// NewEmailManager creates a new EmailManager with the specified template folder
 func NewEmailManager(templateFolder string) *EmailManager {
 	return &EmailManager{
 		EmailTemplateFolder: templateFolder,
@@ -27,7 +25,6 @@ func NewEmailManager(templateFolder string) *EmailManager {
 	}
 }
 
-// getTemplates loads raw template content from disk
 func (em *EmailManager) getTemplates(templateName string) (string, string, error) {
 	folder := filepath.Join(em.EmailTemplateFolder, templateName)
 	textPath := filepath.Join(folder, templateName+".txt")
@@ -46,7 +43,6 @@ func (em *EmailManager) getTemplates(templateName string) (string, string, error
 	return string(textContent), string(htmlContent), nil
 }
 
-// getOrParseTextTemplate retrieves a cached text template or parses a new one
 func (em *EmailManager) getOrParseTextTemplate(templateName, content string) (*textTemplate.Template, error) {
 	em.mu.RLock()
 	if tmpl, exists := em.TextCache[templateName]; exists {
@@ -67,7 +63,6 @@ func (em *EmailManager) getOrParseTextTemplate(templateName, content string) (*t
 	return tmpl, nil
 }
 
-// getOrParseHTMLTemplate retrieves a cached HTML template or parses a new one
 func (em *EmailManager) getOrParseHTMLTemplate(templateName, content string) (*htmlTemplate.Template, error) {
 	em.mu.RLock()
 	if tmpl, exists := em.HTMLCache[templateName]; exists {
@@ -88,8 +83,6 @@ func (em *EmailManager) getOrParseHTMLTemplate(templateName, content string) (*h
 	return tmpl, nil
 }
 
-// GenerateTemplate generates both text and HTML email content from templates
-// properties should be a struct or map containing the template data
 func (em *EmailManager) GenerateTemplate(templateName string, properties any) (string, string, error) {
 	templateText, templateHTML, err := em.getTemplates(templateName)
 	if err != nil {
@@ -119,7 +112,6 @@ func (em *EmailManager) GenerateTemplate(templateName string, properties any) (s
 	return compiledText.String(), compiledHTML.String(), nil
 }
 
-// ClearCache clears all cached templates (useful for development/hot-reloading)
 func (em *EmailManager) ClearCache() {
 	em.mu.Lock()
 	defer em.mu.Unlock()
@@ -127,7 +119,6 @@ func (em *EmailManager) ClearCache() {
 	em.HTMLCache = make(map[string]*htmlTemplate.Template)
 }
 
-// PreloadTemplates loads and caches templates ahead of time
 func (em *EmailManager) PreloadTemplates(templateNames ...string) error {
 	for _, name := range templateNames {
 		templateText, templateHTML, err := em.getTemplates(name)

@@ -14,6 +14,7 @@ import (
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
 	"github.com/parlorhub/api-core/internal/modules/onboarding"
+	"github.com/parlorhub/api-core/internal/modules/profile"
 	"github.com/parlorhub/api-core/internal/modules/sso"
 )
 
@@ -22,6 +23,7 @@ type Server struct {
 
 	db                 database.Service
 	authHandler        *auth.AuthHandler
+	profileHandler     *profile.ProfileHandler
 	contactFormHandler *contactform.ContactFormHandler
 	onboardingHandler  *onboarding.OnboardingHandler
 	rbacMiddleware     *rbac.RbacMiddleware
@@ -40,6 +42,7 @@ func NewServer() *http.Server {
 	}
 
 	authHandler := auth.NewAuthHandler(db.GetDB(), sessionService)
+	profileHandler := profile.NewProfileHandler(db.GetDB())
 	contactFormHandler := contactform.NewContactFormHandler(db.GetDB())
 	onboardingHandler := onboarding.NewOnboardingHandler(db.GetDB())
 	rbacMiddleware := rbac.NewRbacMiddleware(db.GetDB())
@@ -49,6 +52,7 @@ func NewServer() *http.Server {
 
 		db:                 db,
 		authHandler:        authHandler,
+		profileHandler:     profileHandler,
 		rbacMiddleware:     rbacMiddleware,
 		contactFormHandler: contactFormHandler,
 		onboardingHandler:  onboardingHandler,

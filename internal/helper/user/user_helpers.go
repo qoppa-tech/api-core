@@ -37,9 +37,6 @@ func userRoleToInteger(userRole sqlc.UserRole) (int, error) {
 }
 
 func CompareUserRolePrivileges(userRole1 sqlc.UserRole, userRole2 sqlc.UserRole) (bool, error) {
-	/*
-		Compare if userRole1 >= userRole2
-	*/
 	role1integer, err := userRoleToInteger(userRole1)
 	if err != nil {
 		return false, err

@@ -42,8 +42,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 		authProtected.POST("/logout", s.authHandler.LogoutHandler)
 	}
 
+	r.GET("/profile", auth.AuthMiddleware(s.authHandler.GetService()), s.profileHandler.GetProfile)
+	r.PATCH("/profile", auth.AuthMiddleware(s.authHandler.GetService()), s.profileHandler.UpdateProfile)
+
 	r.GET("/onboarding", auth.AuthMiddleware(s.authHandler.GetService()), s.onboardingHandler.GetOnboarding)
 	r.POST("/onboarding", auth.AuthMiddleware(s.authHandler.GetService()), s.onboardingHandler.SaveOnboarding)
+	r.POST("/onboarding/step", auth.AuthMiddleware(s.authHandler.GetService()), s.onboardingHandler.SaveOnboardingStep)
 
 	landingPage := r.Group("")
 	landingPage.Use(origin.LandingPageOnly())

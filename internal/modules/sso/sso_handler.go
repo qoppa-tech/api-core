@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -87,12 +88,10 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	})
 
 	var user sqlc.User
-	isNewUser := false
 
 	if err == sql.ErrNoRows {
 		existingUser, err := h.queries.GetUserByEmail(ctx.Request.Context(), userInfo.Email)
 		if err == sql.ErrNoRows {
-			isNewUser = true
 			user, err = h.queries.CreateUser(ctx.Request.Context(), sqlc.CreateUserParams{
 				Email:        userInfo.Email,
 				PasswordHash: "",
@@ -150,9 +149,13 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 
 	frontendURL := os.Getenv("FRONTEND_URL")
 	redirectURL := frontendURL + "/auth/callback"
-	if isNewUser {
-		redirectURL += "?newUser=true"
+
+	params := "?onboardingCompleted=" + strconv.FormatBool(user.OnboardingCompletedAt.Valid)
+	if user.CurrentOnboardingStepID.Valid {
+		params += "&onboardingStep=" + strconv.Itoa(int(user.CurrentOnboardingStepID.Int32))
 	}
+	redirectURL += params
+
 	ctx.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 

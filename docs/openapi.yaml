@@ -16,6 +16,8 @@ tags:
     description: Authentication endpoints
   - name: SSO
     description: Single Sign-On (OAuth2) endpoints
+  - name: Profile
+    description: User profile endpoints
   - name: Contact Form
     description: Contact form endpoints
   - name: Onboarding
@@ -107,6 +109,50 @@ paths:
         '401':
           description: Unauthorized
 
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: Get user profile
+      description: Returns the authenticated user's profile information
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          description: Unauthorized
+    patch:
+      tags:
+        - Profile
+      summary: Update user profile
+      description: Updates the authenticated user's profile information. At least one field must be provided.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          description: Bad request - invalid input or no fields provided
+        '401':
+          description: Unauthorized
+        '409':
+          description: Email already in use
+
   /auth/logout:
     post:
       tags:
@@ -120,6 +166,22 @@ paths:
           description: Logged out successfully
         '401':
           description: Unauthorized
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Uses the refresh token cookie to issue a new access token
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Refresh token not found or invalid
 
   /auth/google:
     get:
@@ -152,7 +214,11 @@ paths:
           description: State parameter for CSRF protection
       responses:
         '307':
-          description: Redirect to frontend with token
+          description: |
+            Redirect to frontend with onboarding status.
+            Redirect URL format: {FRONTEND_URL}/auth/callback?onboardingCompleted={true|false}&onboardingStep={step_id}
+            - onboardingCompleted: Whether the user has completed onboarding
+            - onboardingStep: Current onboarding step ID (only present if user has started onboarding)
         '400':
           description: Missing authorization code
         '500':
@@ -210,8 +276,8 @@ paths:
     post:
       tags:
         - Onboarding
-      summary: Save onboarding selections
-      description: Saves the user's onboarding selections and tracks progress
+      summary: Save onboarding selections (batch)
+      description: Saves multiple onboarding steps at once. Use POST /onboarding/step for single-step saves.
       security:
         - bearerAuth: []
       requestBody:
@@ -223,6 +289,45 @@ paths:
       responses:
         '200':
           description: Onboarding selections saved successfully
+        '400':
+          description: Bad request - invalid input
+        '401':
+          description: Unauthorized
+
+  /onboarding/step:
+    post:
+      tags:
+        - Onboarding
+      summary: Save single onboarding step (performant)
+      description: |
+        Saves a single onboarding step with its selections in a single transaction.
+        More performant than batch endpoint for step-by-step onboarding flow.
+        Sets is_last_step=true on the final step to mark onboarding as completed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveOnboardingStepRequest'
+      responses:
+        '200':
+          description: Step saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "step saved successfully"
+                  step_id:
+                    type: integer
+                    example: 2
+                  completed:
+                    type: boolean
+                    example: false
         '400':
           description: Bad request - invalid input
         '401':
@@ -277,11 +382,56 @@ components:
     AuthResponse:
       type: object
       properties:
-        token:
-          type: string
-          description: JWT access token
         user:
           $ref: '#/components/schemas/UserResponse'
+      description: Authentication response. Tokens are set as HTTP-only cookies, not returned in body.
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Jane Doe"
+          description: New display name
+        phone:
+          type: string
+          example: "+1987654321"
+          description: New phone number
+        email:
+          type: string
+          format: email
+          example: "newemail@example.com"
+          description: New email address
+      description: At least one field must be provided
+
+    ProfileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [admin, owner, employee, customer]
+        salon_id:
+          type: string
+          format: uuid
+          nullable: true
+        onboarding_completed:
+          type: boolean
+          description: Whether the user has completed onboarding
+        current_onboarding_step:
+          type: integer
+          nullable: true
+          description: The user's current onboarding step ID
 
     UserResponse:
       type: object
@@ -443,6 +593,28 @@ components:
             type: integer
           minItems: 1
           example: [1, 3, 6]
+
+    SaveOnboardingStepRequest:
+      type: object
+      required:
+        - step_id
+        - option_indices
+      properties:
+        step_id:
+          type: integer
+          example: 2
+          description: The step ID being saved
+        option_indices:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          example: [1, 3, 6]
+          description: Array of selected option indices for this step
+        is_last_step:
+          type: boolean
+          example: false
+          description: Set to true on the final step to mark onboarding as completed (sets onboarding_completed_at)
 
     SaveOnboardingRequest:
       type: object

@@ -55,11 +55,9 @@ type AuthResponse struct {
 	User UserResponse `json:"user"`
 }
 
-// SetAuthCookies sets HTTP-only cookies for access and refresh tokens
 func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 	InitJWTConfig()
 
-	// Access token cookie - short-lived, strict mode for CSRF protection
 	ctx.SetSameSite(http.SameSiteStrictMode)
 	ctx.SetCookie(
 		AccessTokenCookieName,
@@ -68,22 +66,20 @@ func SetAuthCookies(ctx *gin.Context, tokens *TokenPair) {
 		"/",
 		CookieDomain,
 		CookieSecure,
-		true, // httpOnly
+		true,
 	)
 
-	// Refresh token cookie - long-lived, only sent to /auth/refresh endpoint
 	ctx.SetCookie(
 		RefreshTokenCookieName,
 		tokens.RefreshToken,
 		int(RefreshExpiration.Seconds()),
-		"/auth/refresh", // Only sent to refresh endpoint
+		"/auth/refresh",
 		CookieDomain,
 		CookieSecure,
-		true, // httpOnly
+		true,
 	)
 }
 
-// ClearAuthCookies removes auth cookies
 func ClearAuthCookies(ctx *gin.Context) {
 	InitJWTConfig()
 
@@ -92,7 +88,6 @@ func ClearAuthCookies(ctx *gin.Context) {
 	ctx.SetCookie(RefreshTokenCookieName, "", -1, "/auth/refresh", CookieDomain, CookieSecure, true)
 }
 
-// GetAccessTokenFromRequest extracts access token from cookie or Authorization header
 func GetAccessTokenFromRequest(ctx *gin.Context) string {
 	if token, err := ctx.Cookie(AccessTokenCookieName); err == nil && token != "" {
 		return token
@@ -257,7 +252,6 @@ func (h *AuthHandler) RefreshHandler(ctx *gin.Context) {
 	})
 }
 
-// GetService returns the auth service for use by other modules (e.g., SSO)
 func (h *AuthHandler) GetService() *AuthService {
 	return h.service
 }

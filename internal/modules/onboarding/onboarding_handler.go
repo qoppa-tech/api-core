@@ -12,11 +12,13 @@ import (
 
 type OnboardingHandler struct {
 	queries *sqlc.Queries
+	db      *sql.DB
 }
 
 func NewOnboardingHandler(db *sql.DB) *OnboardingHandler {
 	return &OnboardingHandler{
 		queries: sqlc.New(db),
+		db:      db,
 	}
 }
 
@@ -45,6 +47,12 @@ type OnboardingProgressResponse struct {
 type OnboardingSelectionRequest struct {
 	StepID        int32   `json:"step_id" binding:"required"`
 	OptionIndices []int32 `json:"option_indices" binding:"required,min=1"`
+}
+
+type SaveOnboardingStepRequest struct {
+	StepID        int32   `json:"step_id" binding:"required"`
+	OptionIndices []int32 `json:"option_indices" binding:"required,min=1"`
+	IsLastStep    bool    `json:"is_last_step"`
 }
 
 type SaveOnboardingRequest struct {
@@ -118,8 +126,8 @@ func (h *OnboardingHandler) SaveOnboarding(ctx *gin.Context) {
 	}
 
 	for _, selection := range req.Selections {
-		err := h.queries.DeleteUserOnboardingSelections(ctx.Request.Context(),
-			sqlc.DeleteUserOnboardingSelectionsParams{
+		err := h.queries.DeleteUserOnboardingSelectionsByStep(ctx.Request.Context(),
+			sqlc.DeleteUserOnboardingSelectionsByStepParams{
 				UserID: uuid.NullUUID{UUID: userID.(uuid.UUID), Valid: true},
 				StepID: selection.StepID,
 			})
@@ -178,6 +186,99 @@ func (h *OnboardingHandler) SaveOnboarding(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "onboarding saved successfully"})
+}
+
+func (h *OnboardingHandler) SaveOnboardingStep(ctx *gin.Context) {
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req SaveOnboardingStepRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.queries.GetUserByID(ctx.Request.Context(), userID.(uuid.UUID))
+	if err != nil {
+		logger.Error("Failed to get user", logger.Err(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
+		return
+	}
+
+	salonID := user.ID
+	if user.SalonID.Valid {
+		salonID = user.SalonID.UUID
+	}
+
+	tx, err := h.db.BeginTx(ctx.Request.Context(), nil)
+	if err != nil {
+		logger.Error("Failed to begin transaction", logger.Err(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save step"})
+		return
+	}
+	defer tx.Rollback()
+
+	qtx := h.queries.WithTx(tx)
+
+	err = qtx.DeleteUserOnboardingSelectionsByStep(ctx.Request.Context(),
+		sqlc.DeleteUserOnboardingSelectionsByStepParams{
+			UserID: uuid.NullUUID{UUID: userID.(uuid.UUID), Valid: true},
+			StepID: req.StepID,
+		})
+	if err != nil {
+		logger.Error("Failed to delete old selections", logger.Err(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save step"})
+		return
+	}
+
+	for _, optionIndex := range req.OptionIndices {
+		err := qtx.SaveOnboardingSelection(ctx.Request.Context(),
+			sqlc.SaveOnboardingSelectionParams{
+				UserID:      uuid.NullUUID{UUID: userID.(uuid.UUID), Valid: true},
+				SalonID:     salonID,
+				StepID:      req.StepID,
+				OptionIndex: optionIndex,
+			})
+		if err != nil {
+			logger.Error("Failed to save selection", logger.Err(err))
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save step"})
+			return
+		}
+	}
+
+	if req.IsLastStep {
+		err = qtx.CompleteUserOnboarding(ctx.Request.Context(),
+			sqlc.CompleteUserOnboardingParams{
+				ID:                      userID.(uuid.UUID),
+				CurrentOnboardingStepID: sql.NullInt32{Int32: req.StepID, Valid: true},
+			})
+	} else {
+		err = qtx.UpdateUserOnboardingStep(ctx.Request.Context(),
+			sqlc.UpdateUserOnboardingStepParams{
+				ID:                      userID.(uuid.UUID),
+				CurrentOnboardingStepID: sql.NullInt32{Int32: req.StepID, Valid: true},
+			})
+	}
+	if err != nil {
+		logger.Error("Failed to update user onboarding step", logger.Err(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save step"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.Error("Failed to commit transaction", logger.Err(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save step"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":   "step saved successfully",
+		"step_id":   req.StepID,
+		"completed": req.IsLastStep,
+	})
 }
 
 func buildOnboardingResponse(
