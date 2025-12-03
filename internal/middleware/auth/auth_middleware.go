@@ -4,20 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	a "github.com/parlorhub/api-core/internal/modules/auth"
 )
 
-// AuthMiddleware validates the access token from cookies or Authorization header
-func AuthMiddleware(authService *AuthService) gin.HandlerFunc {
+func AuthMiddleware(authService *a.AuthService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		InitJWTConfig()
+		a.InitJWTConfig()
 
-		token := GetAccessTokenFromRequest(ctx)
+		token := a.GetAccessTokenFromRequest(ctx)
 		if token == "" {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
 
-		// Check if token is blacklisted
 		if authService != nil {
 			blacklisted, err := authService.IsTokenBlacklisted(ctx.Request.Context(), token)
 			if err == nil && blacklisted {
@@ -26,14 +25,12 @@ func AuthMiddleware(authService *AuthService) gin.HandlerFunc {
 			}
 		}
 
-		// Parse and validate token
 		claims, err := authService.ParseToken(token)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
 
-		// Set user info in context
 		ctx.Set("user_id", claims.UserID)
 		ctx.Set("email", claims.Email)
 		ctx.Set("role", claims.Role)

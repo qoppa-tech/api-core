@@ -2,12 +2,9 @@
 INSERT INTO sso (
     user_id,
     provider,
-    provider_user_id,
-    access_token,
-    refresh_token,
-    expires_at
+    provider_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3
 ) RETURNING *;
 
 -- name: GetSSOByProvider :one
@@ -17,16 +14,6 @@ WHERE provider = $1 AND provider_user_id = $2 LIMIT 1;
 -- name: GetSSOByUserID :many
 SELECT * FROM sso
 WHERE user_id = $1;
-
--- name: UpdateSSOTokens :one
-UPDATE sso
-SET 
-    access_token = $2,
-    refresh_token = $3,
-    expires_at = $4,
-    updated_at = NOW()
-WHERE id = $1
-RETURNING *;
 
 -- name: DeleteSSO :exec
 DELETE FROM sso

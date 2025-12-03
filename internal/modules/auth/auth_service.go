@@ -138,7 +138,6 @@ func (s *AuthService) ParseToken(tokenString string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
-	// Return claims even if token is expired (for refresh flow)
 	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
 		return nil, ErrInvalidToken
 	}
@@ -146,9 +145,7 @@ func (s *AuthService) ParseToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-// Register creates a new user and returns tokens
 func (s *AuthService) Register(ctx context.Context, email, password, name, phone, role string) (sqlc.User, error) {
-	// Check if user exists
 	existingUser, err := s.queries.GetUserByEmail(ctx, email)
 	if err == nil && existingUser.ID != uuid.Nil {
 		return sqlc.User{}, ErrUserExists
@@ -157,7 +154,6 @@ func (s *AuthService) Register(ctx context.Context, email, password, name, phone
 		return sqlc.User{}, err
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {
 		return sqlc.User{}, err
@@ -175,7 +171,6 @@ func (s *AuthService) Register(ctx context.Context, email, password, name, phone
 		userRole = sqlc.UserRoleCustomer
 	}
 
-	// Create user
 	user, err := s.queries.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:        email,
 		PasswordHash: string(hashedPassword),
@@ -191,7 +186,6 @@ func (s *AuthService) Register(ctx context.Context, email, password, name, phone
 	return user, nil
 }
 
-// ValidateCredentials checks email/password and returns the user
 func (s *AuthService) ValidateCredentials(ctx context.Context, email, password string) (sqlc.User, error) {
 	user, err := s.queries.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -205,20 +199,16 @@ func (s *AuthService) ValidateCredentials(ctx context.Context, email, password s
 	return user, nil
 }
 
-// CreateSession generates tokens, blacklists old ones, and stores new ones in Redis
 func (s *AuthService) CreateSession(ctx context.Context, user sqlc.User, oldAccessToken string) (*TokenPair, error) {
-	// Blacklist old access token if provided
 	if oldAccessToken != "" {
 		_ = s.sessionService.BlacklistToken(ctx, oldAccessToken, JwtExpiration)
 	}
 
-	// Blacklist any existing token for this user
 	existingToken, err := s.sessionService.GetToken(ctx, user.ID.String())
 	if err == nil && existingToken != "" {
 		_ = s.sessionService.BlacklistToken(ctx, existingToken, JwtExpiration)
 	}
 
-	// Generate new tokens
 	accessToken, err := s.GenerateAccessToken(user)
 	if err != nil {
 		return nil, err
@@ -229,7 +219,6 @@ func (s *AuthService) CreateSession(ctx context.Context, user sqlc.User, oldAcce
 		return nil, err
 	}
 
-	// Store tokens in Redis
 	if err := s.sessionService.StoreToken(ctx, user.ID.String(), accessToken, JwtExpiration); err != nil {
 		return nil, err
 	}
@@ -244,27 +233,22 @@ func (s *AuthService) CreateSession(ctx context.Context, user sqlc.User, oldAcce
 	}, nil
 }
 
-// RefreshSession validates refresh token and creates new session
 func (s *AuthService) RefreshSession(ctx context.Context, oldAccessToken, refreshToken string) (sqlc.User, *TokenPair, error) {
-	// Parse old access token to get user ID (even if expired)
 	claims, err := s.ParseToken(oldAccessToken)
 	if err != nil {
 		return sqlc.User{}, nil, err
 	}
 
-	// Verify refresh token matches stored one
 	storedRefreshToken, err := s.sessionService.GetRefreshToken(ctx, claims.UserID.String())
 	if err != nil || storedRefreshToken != refreshToken {
 		return sqlc.User{}, nil, ErrInvalidRefreshToken
 	}
 
-	// Get user from database
 	user, err := s.queries.GetUserByID(ctx, claims.UserID)
 	if err != nil {
 		return sqlc.User{}, nil, ErrUserNotFound
 	}
 
-	// Create new session (this will blacklist the old token)
 	tokens, err := s.CreateSession(ctx, user, oldAccessToken)
 	if err != nil {
 		return sqlc.User{}, nil, err
@@ -273,7 +257,6 @@ func (s *AuthService) RefreshSession(ctx context.Context, oldAccessToken, refres
 	return user, tokens, nil
 }
 
-// Logout blacklists token and deletes all user tokens from Redis
 func (s *AuthService) Logout(ctx context.Context, userID uuid.UUID, accessToken string) error {
 	if accessToken != "" {
 		_ = s.sessionService.BlacklistToken(ctx, accessToken, JwtExpiration)
@@ -282,12 +265,10 @@ func (s *AuthService) Logout(ctx context.Context, userID uuid.UUID, accessToken 
 	return s.sessionService.DeleteAllUserTokens(ctx, userID.String())
 }
 
-// GetUserByID retrieves a user by ID
 func (s *AuthService) GetUserByID(ctx context.Context, userID uuid.UUID) (sqlc.User, error) {
 	return s.queries.GetUserByID(ctx, userID)
 }
 
-// IsTokenBlacklisted checks if a token is blacklisted
 func (s *AuthService) IsTokenBlacklisted(ctx context.Context, token string) (bool, error) {
 	return s.sessionService.IsTokenBlacklisted(ctx, token)
 }

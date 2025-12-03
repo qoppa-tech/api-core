@@ -1,4 +1,3 @@
-// Package email handles sending emails, email tamplates, and related functionalities.
 package email
 
 import (

@@ -7,7 +7,6 @@ package sqlc
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -16,42 +15,26 @@ const createSSO = `-- name: CreateSSO :one
 INSERT INTO sso (
     user_id,
     provider,
-    provider_user_id,
-    access_token,
-    refresh_token,
-    expires_at
+    provider_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
-) RETURNING id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at, updated_at
+    $1, $2, $3
+) RETURNING id, user_id, provider, provider_user_id, created_at, updated_at
 `
 
 type CreateSSOParams struct {
-	UserID         uuid.UUID      `json:"user_id"`
-	Provider       string         `json:"provider"`
-	ProviderUserID string         `json:"provider_user_id"`
-	AccessToken    sql.NullString `json:"access_token"`
-	RefreshToken   sql.NullString `json:"refresh_token"`
-	ExpiresAt      sql.NullTime   `json:"expires_at"`
+	UserID         uuid.UUID `json:"user_id"`
+	Provider       string    `json:"provider"`
+	ProviderUserID string    `json:"provider_user_id"`
 }
 
 func (q *Queries) CreateSSO(ctx context.Context, arg CreateSSOParams) (Sso, error) {
-	row := q.db.QueryRowContext(ctx, createSSO,
-		arg.UserID,
-		arg.Provider,
-		arg.ProviderUserID,
-		arg.AccessToken,
-		arg.RefreshToken,
-		arg.ExpiresAt,
-	)
+	row := q.db.QueryRowContext(ctx, createSSO, arg.UserID, arg.Provider, arg.ProviderUserID)
 	var i Sso
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.Provider,
 		&i.ProviderUserID,
-		&i.AccessToken,
-		&i.RefreshToken,
-		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -79,7 +62,7 @@ func (q *Queries) DeleteSSOByUserID(ctx context.Context, userID uuid.UUID) error
 }
 
 const getSSOByProvider = `-- name: GetSSOByProvider :one
-SELECT id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at, updated_at FROM sso
+SELECT id, user_id, provider, provider_user_id, created_at, updated_at FROM sso
 WHERE provider = $1 AND provider_user_id = $2 LIMIT 1
 `
 
@@ -96,9 +79,6 @@ func (q *Queries) GetSSOByProvider(ctx context.Context, arg GetSSOByProviderPara
 		&i.UserID,
 		&i.Provider,
 		&i.ProviderUserID,
-		&i.AccessToken,
-		&i.RefreshToken,
-		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -106,7 +86,7 @@ func (q *Queries) GetSSOByProvider(ctx context.Context, arg GetSSOByProviderPara
 }
 
 const getSSOByUserID = `-- name: GetSSOByUserID :many
-SELECT id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at, updated_at FROM sso
+SELECT id, user_id, provider, provider_user_id, created_at, updated_at FROM sso
 WHERE user_id = $1
 `
 
@@ -124,9 +104,6 @@ func (q *Queries) GetSSOByUserID(ctx context.Context, userID uuid.UUID) ([]Sso, 
 			&i.UserID,
 			&i.Provider,
 			&i.ProviderUserID,
-			&i.AccessToken,
-			&i.RefreshToken,
-			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -141,44 +118,4 @@ func (q *Queries) GetSSOByUserID(ctx context.Context, userID uuid.UUID) ([]Sso, 
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateSSOTokens = `-- name: UpdateSSOTokens :one
-UPDATE sso
-SET 
-    access_token = $2,
-    refresh_token = $3,
-    expires_at = $4,
-    updated_at = NOW()
-WHERE id = $1
-RETURNING id, user_id, provider, provider_user_id, access_token, refresh_token, expires_at, created_at, updated_at
-`
-
-type UpdateSSOTokensParams struct {
-	ID           uuid.UUID      `json:"id"`
-	AccessToken  sql.NullString `json:"access_token"`
-	RefreshToken sql.NullString `json:"refresh_token"`
-	ExpiresAt    sql.NullTime   `json:"expires_at"`
-}
-
-func (q *Queries) UpdateSSOTokens(ctx context.Context, arg UpdateSSOTokensParams) (Sso, error) {
-	row := q.db.QueryRowContext(ctx, updateSSOTokens,
-		arg.ID,
-		arg.AccessToken,
-		arg.RefreshToken,
-		arg.ExpiresAt,
-	)
-	var i Sso
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Provider,
-		&i.ProviderUserID,
-		&i.AccessToken,
-		&i.RefreshToken,
-		&i.ExpiresAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
