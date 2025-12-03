@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o main cmd/api/main.go
 
-FROM alpine:3.20.1 AS prod
+FROM alpine:3.22.2 AS prod
 
 RUN apk --no-cache add ca-certificates && \
     addgroup -g 1000 appuser && \
@@ -27,6 +27,7 @@ RUN apk --no-cache add ca-certificates && \
 WORKDIR /app
 
 COPY --from=build /app/main /app/main
+COPY --from=build /app/docs /app/docs
 
 RUN chown -R appuser:appuser /app
 

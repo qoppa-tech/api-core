@@ -6,14 +6,17 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/parlorhub/api-core/internal/logger"
+	"github.com/parlorhub/api-core/internal/modules/auth"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(logger.SetupLogger())
+	r.Use(gin.Recovery())
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{os.Getenv("FRONTEND_URL")},
+		AllowOrigins:     []string{"http://localhost:4321", os.Getenv("FRONTEND_URL")},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -21,19 +24,30 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 
-	auth := r.Group("/auth")
+	authGroup := r.Group("/auth")
 	{
-		auth.POST("/register", s.authHandler.RegisterHandler)
-		auth.POST("/login", s.authHandler.LoginHandler)
-		auth.GET("/me", s.authHandler.MeHandler)
-		auth.POST("/logout", s.authHandler.LogoutHandler)
+		authGroup.POST("/register", s.authHandler.RegisterHandler)
+		authGroup.POST("/login", s.authHandler.LoginHandler)
+		authGroup.POST("/refresh", s.authHandler.RefreshHandler)
+
+		authGroup.GET("/google", s.ssoHandler.GoogleLoginHandler)
+		authGroup.GET("/google/callback", s.ssoHandler.GoogleCallbackHandler)
 	}
 
-	contactForm := r.Group("/contact-form")
+	authProtected := r.Group("/auth")
+	authProtected.Use(auth.AuthMiddleware(s.authHandler.GetService()))
 	{
-		contactForm.POST("/", s.contactFormHandler.CreateContactForm)
-		contactForm.GET("/", s.contactFormHandler.ListContactForms)
+		authProtected.GET("/me", s.authHandler.MeHandler)
+		authProtected.POST("/logout", s.authHandler.LogoutHandler)
 	}
+
+	r.POST("/contact-form", s.contactFormHandler.CreateContactForm)
+	r.GET("/contact-form", s.contactFormHandler.ListContactForms)
+
+	r.Static("/swagger", "./docs")
+	r.GET("/docs", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/swagger.html")
+	})
 
 	return r
 }

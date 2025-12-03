@@ -24,6 +24,7 @@ tmp/
 
 # .env file
 .env
+.env.local
 
 # Node.js
 node_modules/
@@ -39,6 +40,5 @@ main
 *.log
 
 # Nginx
-/nginx/access.log
-/nginx/error.log
-/nginx/storage/
+config/nginx/storage/
+config/nginx/logs/

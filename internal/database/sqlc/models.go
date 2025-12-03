@@ -191,9 +191,10 @@ func (ns NullNotificationType) Value() (driver.Value, error) {
 type UserRole string
 
 const (
-	UserRoleAdmin UserRole = "admin"
-	UserRoleStaff UserRole = "staff"
-	UserRoleSolo  UserRole = "solo"
+	UserRoleAdmin    UserRole = "admin"
+	UserRoleOwner    UserRole = "owner"
+	UserRoleEmployee UserRole = "employee"
+	UserRoleCustomer UserRole = "customer"
 )
 
 func (e *UserRole) Scan(src interface{}) error {
@@ -315,15 +316,6 @@ type Service struct {
 	Price          int32         `json:"price"`
 	Active         bool          `json:"active"`
 	CreatedAt      time.Time     `json:"created_at"`
-}
-
-type Session struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Token     string    `json:"token"`
-	ExpiresAt time.Time `json:"expires_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Sso struct {

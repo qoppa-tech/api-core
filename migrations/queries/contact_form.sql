@@ -17,6 +17,6 @@ LIMIT $2;
 -- name: ListContactFormsHasNotResponded :many
 SELECT *
 FROM contact_form
-WHERE response IS NULL
+WHERE answered_at IS NULL
 ORDER BY created_at DESC OFFSET $1
 LIMIT $2;

@@ -7,10 +7,13 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/joho/godotenv/autoload"
 	"github.com/parlorhub/api-core/internal/database"
+	"github.com/parlorhub/api-core/internal/logger"
+	"github.com/parlorhub/api-core/internal/middleware/rbac"
 	"github.com/parlorhub/api-core/internal/modules/auth"
+	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
+	"github.com/parlorhub/api-core/internal/modules/sso"
 )
 
 type Server struct {
@@ -19,16 +22,34 @@ type Server struct {
 	db                 database.Service
 	authHandler        *auth.AuthHandler
 	contactFormHandler *contactform.ContactFormHandler
+	rbacMiddleware     *rbac.RbacMiddleware
+	ssoHandler         *sso.SSOHandler
 }
 
 func NewServer() *http.Server {
+	// Initialize logger first
+	logger.Init()
+
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	db := database.New()
+
+	sessionService, err := session.NewSessionService()
+	if err != nil {
+		logger.Warn("Failed to initialize session service", logger.Err(err))
+	}
+
+	authHandler := auth.NewAuthHandler(db.GetDB(), sessionService)
+	contactFormHandler := contactform.NewContactFormHandler(db.GetDB())
+	rbacMiddleware := rbac.NewRbacMiddleware(db.GetDB())
+
 	NewServer := &Server{
 		port: port,
 
-		db:          db,
-		authHandler: auth.NewAuthHandler(db.GetDB()),
+		db:                 db,
+		authHandler:        authHandler,
+		rbacMiddleware:     rbacMiddleware,
+		contactFormHandler: contactFormHandler,
+		ssoHandler:         sso.NewSSOHandler(db.GetDB(), authHandler.GetService()),
 	}
 
 	server := &http.Server{
@@ -38,6 +59,8 @@ func NewServer() *http.Server {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
+
+	logger.Info("Server initialized", logger.F("port", port))
 
 	return server
 }

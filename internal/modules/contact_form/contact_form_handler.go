@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
+	"github.com/parlorhub/api-core/internal/logger"
 )
 
 type ContactFormHandler struct {
@@ -31,18 +32,21 @@ type FindContactFormParams struct {
 	HasNotResponded bool  `json:"has_not_responded,omitempty"`
 }
 
-func NewContactFormHandler(queries *sqlc.Queries) *ContactFormHandler {
+func NewContactFormHandler(db *sql.DB) *ContactFormHandler {
 	return &ContactFormHandler{
-		Queries: queries,
+		Queries: sqlc.New(db),
 	}
 }
 
 func (h *ContactFormHandler) CreateContactForm(ctx *gin.Context) {
 	var req CreateContactFormRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Debug("Contact form validation error", logger.Err(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	logger.Debug("Creating contact form", logger.F("email", req.Email), logger.F("subject", req.Subject))
 
 	cf, err := h.Queries.CreateContactForm(ctx, sqlc.CreateContactFormParams{
 		FullName:    req.FullName,
@@ -54,6 +58,7 @@ func (h *ContactFormHandler) CreateContactForm(ctx *gin.Context) {
 	})
 
 	if err != nil {
+		logger.Error("Failed to create contact form", logger.Err(err), logger.F("email", req.Email))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

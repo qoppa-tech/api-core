@@ -1,8 +1,6 @@
 FROM nginx:latest
 
-RUN touch /var/log/nginx/file_storage.access.log \
-  touch /var/log/nginx/file_storage.error.log \
-  mkdir /var/lib/nginx
+RUN mkdir --parents /var/lib/nginx/body
+RUN touch /var/log/nginx/file_storage.access.log /var/log/nginx/file_storage.error.log
 
-ENTRYPOINT [ "exec", "nginx", "-g", "off;" ]
-
+ENTRYPOINT [ "nginx", "-g", "daemon off;" ]

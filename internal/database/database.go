@@ -4,13 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/parlorhub/api-core/internal/logger"
 )
 
 type Service interface {
@@ -42,8 +41,12 @@ func New() Service {
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Failed to connect to database", logger.Err(err))
+		panic(err)
 	}
+
+	logger.Info("Connected to database", logger.F("host", host), logger.F("database", database))
+
 	dbInstance = &service{
 		db: db,
 	}
@@ -60,7 +63,7 @@ func (s *service) Health() map[string]string {
 	if err != nil {
 		stats["status"] = "down"
 		stats["error"] = fmt.Sprintf("db down: %v", err)
-		log.Fatalf("db down: %v", err)
+		logger.Error("Database health check failed", logger.Err(err))
 		return stats
 	}
 
@@ -96,7 +99,7 @@ func (s *service) Health() map[string]string {
 }
 
 func (s *service) Close() error {
-	log.Printf("Disconnected from database")
+	logger.Info("Disconnecting from database")
 	return s.db.Close()
 }
 
