@@ -1,3 +1,9 @@
+## [2.1.0](https://github.com/parlorhub/api-core/compare/v2.0.0...v2.1.0) (2025-12-03)
+
+### Features
+
+* update nginx port mapping to use environment variable ([9edac7f](https://github.com/parlorhub/api-core/commit/9edac7f897eec611ebbad9491dd263489f62b8f1))
+
 ## [2.0.0](https://github.com/parlorhub/api-core/compare/v1.4.1...v2.0.0) (2025-12-03)
 
 ### ⚠ BREAKING CHANGES
