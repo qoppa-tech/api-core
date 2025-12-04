@@ -20,8 +20,12 @@ builds:
   - CGO_ENABLED=0
   ldflags:
   - -s -w -X {{.Env.PACKAGE_PATH}}={{.Version}} 
+
 release:
   prerelease: auto
+  draft: false
+  mode: keep-existing
+  make_latest: true
 
 universal_binaries:
 - replace: true
