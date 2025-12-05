@@ -22,7 +22,7 @@ INSERT INTO users (
     salon_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6
-) RETURNING id, email, password_hash, name, phone, role, salon_id, created_at, updated_at, current_onboarding_step_id, onboarding_completed_at
+) RETURNING id, email, password_hash, name, phone, role, salon_id, current_onboarding_step_id, onboarding_completed_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -52,10 +52,10 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Phone,
 		&i.Role,
 		&i.SalonID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.CurrentOnboardingStepID,
 		&i.OnboardingCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -71,7 +71,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, phone, role, salon_id, created_at, updated_at, current_onboarding_step_id, onboarding_completed_at FROM users
+SELECT id, email, password_hash, name, phone, role, salon_id, current_onboarding_step_id, onboarding_completed_at, created_at, updated_at FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -86,16 +86,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Phone,
 		&i.Role,
 		&i.SalonID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.CurrentOnboardingStepID,
 		&i.OnboardingCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, name, phone, role, salon_id, created_at, updated_at, current_onboarding_step_id, onboarding_completed_at FROM users
+SELECT id, email, password_hash, name, phone, role, salon_id, current_onboarding_step_id, onboarding_completed_at, created_at, updated_at FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -110,16 +110,16 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Phone,
 		&i.Role,
 		&i.SalonID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.CurrentOnboardingStepID,
 		&i.OnboardingCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, password_hash, name, phone, role, salon_id, created_at, updated_at, current_onboarding_step_id, onboarding_completed_at FROM users
+SELECT id, email, password_hash, name, phone, role, salon_id, current_onboarding_step_id, onboarding_completed_at, created_at, updated_at FROM users
 ORDER BY created_at DESC
 `
 
@@ -140,10 +140,10 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Phone,
 			&i.Role,
 			&i.SalonID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.CurrentOnboardingStepID,
 			&i.OnboardingCompletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 const listUsersBySalonID = `-- name: ListUsersBySalonID :many
-SELECT id, email, password_hash, name, phone, role, salon_id, created_at, updated_at, current_onboarding_step_id, onboarding_completed_at FROM users
+SELECT id, email, password_hash, name, phone, role, salon_id, current_onboarding_step_id, onboarding_completed_at, created_at, updated_at FROM users
 WHERE salon_id = $1
 ORDER BY created_at DESC
 `
@@ -181,10 +181,10 @@ func (q *Queries) ListUsersBySalonID(ctx context.Context, salonID uuid.NullUUID)
 			&i.Phone,
 			&i.Role,
 			&i.SalonID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.CurrentOnboardingStepID,
 			&i.OnboardingCompletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -209,7 +209,7 @@ SET
     salon_id = COALESCE($6, salon_id),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, password_hash, name, phone, role, salon_id, created_at, updated_at, current_onboarding_step_id, onboarding_completed_at
+RETURNING id, email, password_hash, name, phone, role, salon_id, current_onboarding_step_id, onboarding_completed_at, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -239,10 +239,10 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Phone,
 		&i.Role,
 		&i.SalonID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.CurrentOnboardingStepID,
 		&i.OnboardingCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

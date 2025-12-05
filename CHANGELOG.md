@@ -1,3 +1,11 @@
+## [2.2.0](https://github.com/parlorhub/api-core/compare/v2.1.0...v2.2.0) (2025-12-04)
+
+### Features
+
+* add onboarding ([33442a1](https://github.com/parlorhub/api-core/commit/33442a15927e3976d1dbc071ab4c66ceac385c8f))
+* add sso, rbac and ci artifact release ([f1b47d9](https://github.com/parlorhub/api-core/commit/f1b47d93956f01f89566274cc1b91111bdc32486))
+* added onboarding ([3fa56f7](https://github.com/parlorhub/api-core/commit/3fa56f78c85a99285651632f46d4a274e7969f6b))
+
 ## [2.1.0](https://github.com/parlorhub/api-core/compare/v2.0.0...v2.1.0) (2025-12-03)
 
 ### Features

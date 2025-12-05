@@ -1,38 +1,26 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.25.4-alpine AS build
-
-WORKDIR /app
-
-RUN apk add --no-cache git
+FROM golang:1.25.4-alpine AS deps
+WORKDIR /src
+ENV CGO_ENABLED=0 GOFLAGS=-buildvcs=false
 
 COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download && \
-    go mod verify
-
-COPY . .
-
+FROM deps AS build
+COPY cmd ./cmd
+COPY internal ./internal
+COPY assets ./assets
+COPY migrations ./migrations
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o main cmd/api/main.go
+    mkdir -p /out && go build -trimpath -ldflags="-s -w" -o /out/main ./cmd/api
+    
+COPY docs ./docs
 
-FROM alpine:3.22.2 AS prod
-
-RUN apk --no-cache add ca-certificates && \
-    addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
-
-WORKDIR /app
-
-COPY --from=build /app/main /app/main
-COPY --from=build /app/docs /app/docs
-
-RUN chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE ${PORT}
-
-CMD ["./main"]
+FROM scratch AS prod
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build /out/main /main
+COPY --from=build /src/docs /docs
+EXPOSE 8080
+ENTRYPOINT ["/main"]
