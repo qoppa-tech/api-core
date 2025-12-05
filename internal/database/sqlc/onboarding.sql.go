@@ -151,7 +151,7 @@ func (q *Queries) GetOnboardingSteps(ctx context.Context) ([]int32, error) {
 }
 
 const getUserOnboardingSelections = `-- name: GetUserOnboardingSelections :many
-SELECT salon_id, step_id, option_index, chosen_at, user_id FROM salon_onboarding_selection
+SELECT salon_id, step_id, option_index, user_id, chosen_at FROM salon_onboarding_selection
 WHERE user_id = $1
 ORDER BY step_id, option_index
 `
@@ -169,8 +169,8 @@ func (q *Queries) GetUserOnboardingSelections(ctx context.Context, userID uuid.N
 			&i.SalonID,
 			&i.StepID,
 			&i.OptionIndex,
-			&i.ChosenAt,
 			&i.UserID,
+			&i.ChosenAt,
 		); err != nil {
 			return nil, err
 		}

@@ -13,18 +13,18 @@ import (
 	"github.com/google/uuid"
 )
 
-const countAppointmentsByProfessionalAndDate = `-- name: CountAppointmentsByProfessionalAndDate :one
+const countAppointmentsByUserAndDate = `-- name: CountAppointmentsByUserAndDate :one
 SELECT COUNT(*) FROM appointments
-WHERE professional_id = $1 AND date = $2 AND status NOT IN ('cancelled', 'no-show')
+WHERE user_id = $1 AND date = $2 AND status NOT IN ('cancelled', 'no-show')
 `
 
-type CountAppointmentsByProfessionalAndDateParams struct {
-	ProfessionalID uuid.UUID `json:"professional_id"`
-	Date           time.Time `json:"date"`
+type CountAppointmentsByUserAndDateParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Date   time.Time `json:"date"`
 }
 
-func (q *Queries) CountAppointmentsByProfessionalAndDate(ctx context.Context, arg CountAppointmentsByProfessionalAndDateParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAppointmentsByProfessionalAndDate, arg.ProfessionalID, arg.Date)
+func (q *Queries) CountAppointmentsByUserAndDate(ctx context.Context, arg CountAppointmentsByUserAndDateParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAppointmentsByUserAndDate, arg.UserID, arg.Date)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -33,7 +33,7 @@ func (q *Queries) CountAppointmentsByProfessionalAndDate(ctx context.Context, ar
 const createAppointment = `-- name: CreateAppointment :one
 INSERT INTO appointments (
     salon_id,
-    professional_id,
+    user_id,
     service_id,
     client_name,
     client_phone,
@@ -45,27 +45,27 @@ INSERT INTO appointments (
     notes
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-) RETURNING id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at
+) RETURNING id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at
 `
 
 type CreateAppointmentParams struct {
-	SalonID        uuid.UUID         `json:"salon_id"`
-	ProfessionalID uuid.UUID         `json:"professional_id"`
-	ServiceID      uuid.UUID         `json:"service_id"`
-	ClientName     string            `json:"client_name"`
-	ClientPhone    string            `json:"client_phone"`
-	ClientEmail    sql.NullString    `json:"client_email"`
-	Date           time.Time         `json:"date"`
-	StartTime      time.Time         `json:"start_time"`
-	EndTime        time.Time         `json:"end_time"`
-	Status         AppointmentStatus `json:"status"`
-	Notes          sql.NullString    `json:"notes"`
+	SalonID     uuid.UUID         `json:"salon_id"`
+	UserID      uuid.UUID         `json:"user_id"`
+	ServiceID   uuid.UUID         `json:"service_id"`
+	ClientName  string            `json:"client_name"`
+	ClientPhone string            `json:"client_phone"`
+	ClientEmail sql.NullString    `json:"client_email"`
+	Date        time.Time         `json:"date"`
+	StartTime   time.Time         `json:"start_time"`
+	EndTime     time.Time         `json:"end_time"`
+	Status      AppointmentStatus `json:"status"`
+	Notes       sql.NullString    `json:"notes"`
 }
 
 func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error) {
 	row := q.db.QueryRowContext(ctx, createAppointment,
 		arg.SalonID,
-		arg.ProfessionalID,
+		arg.UserID,
 		arg.ServiceID,
 		arg.ClientName,
 		arg.ClientPhone,
@@ -80,7 +80,7 @@ func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentPa
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.ServiceID,
 		&i.ClientName,
 		&i.ClientPhone,
@@ -106,7 +106,7 @@ func (q *Queries) DeleteAppointment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAppointmentByID = `-- name: GetAppointmentByID :one
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
 WHERE id = $1 LIMIT 1
 `
 
@@ -116,7 +116,7 @@ func (q *Queries) GetAppointmentByID(ctx context.Context, id uuid.UUID) (Appoint
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.ServiceID,
 		&i.ClientName,
 		&i.ClientPhone,
@@ -132,7 +132,7 @@ func (q *Queries) GetAppointmentByID(ctx context.Context, id uuid.UUID) (Appoint
 }
 
 const listAppointmentsByClientPhone = `-- name: ListAppointmentsByClientPhone :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
 WHERE salon_id = $1 AND client_phone = $2
 ORDER BY date DESC, start_time DESC
 `
@@ -154,7 +154,7 @@ func (q *Queries) ListAppointmentsByClientPhone(ctx context.Context, arg ListApp
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
 			&i.ServiceID,
 			&i.ClientName,
 			&i.ClientPhone,
@@ -180,7 +180,7 @@ func (q *Queries) ListAppointmentsByClientPhone(ctx context.Context, arg ListApp
 }
 
 const listAppointmentsByDate = `-- name: ListAppointmentsByDate :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
 WHERE salon_id = $1 AND date = $2
 ORDER BY start_time
 `
@@ -202,7 +202,7 @@ func (q *Queries) ListAppointmentsByDate(ctx context.Context, arg ListAppointmen
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
 			&i.ServiceID,
 			&i.ClientName,
 			&i.ClientPhone,
@@ -228,7 +228,7 @@ func (q *Queries) ListAppointmentsByDate(ctx context.Context, arg ListAppointmen
 }
 
 const listAppointmentsByDateRange = `-- name: ListAppointmentsByDateRange :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
 WHERE salon_id = $1 AND date BETWEEN $2 AND $3
 ORDER BY date, start_time
 `
@@ -251,104 +251,7 @@ func (q *Queries) ListAppointmentsByDateRange(ctx context.Context, arg ListAppoi
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
-			&i.ServiceID,
-			&i.ClientName,
-			&i.ClientPhone,
-			&i.ClientEmail,
-			&i.Date,
-			&i.StartTime,
-			&i.EndTime,
-			&i.Status,
-			&i.Notes,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listAppointmentsByProfessional = `-- name: ListAppointmentsByProfessional :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
-WHERE professional_id = $1 AND date = $2
-ORDER BY start_time
-`
-
-type ListAppointmentsByProfessionalParams struct {
-	ProfessionalID uuid.UUID `json:"professional_id"`
-	Date           time.Time `json:"date"`
-}
-
-func (q *Queries) ListAppointmentsByProfessional(ctx context.Context, arg ListAppointmentsByProfessionalParams) ([]Appointment, error) {
-	rows, err := q.db.QueryContext(ctx, listAppointmentsByProfessional, arg.ProfessionalID, arg.Date)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Appointment
-	for rows.Next() {
-		var i Appointment
-		if err := rows.Scan(
-			&i.ID,
-			&i.SalonID,
-			&i.ProfessionalID,
-			&i.ServiceID,
-			&i.ClientName,
-			&i.ClientPhone,
-			&i.ClientEmail,
-			&i.Date,
-			&i.StartTime,
-			&i.EndTime,
-			&i.Status,
-			&i.Notes,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listAppointmentsByProfessionalAndDateRange = `-- name: ListAppointmentsByProfessionalAndDateRange :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
-WHERE professional_id = $1 AND date BETWEEN $2 AND $3
-ORDER BY date, start_time
-`
-
-type ListAppointmentsByProfessionalAndDateRangeParams struct {
-	ProfessionalID uuid.UUID `json:"professional_id"`
-	Date           time.Time `json:"date"`
-	Date_2         time.Time `json:"date_2"`
-}
-
-func (q *Queries) ListAppointmentsByProfessionalAndDateRange(ctx context.Context, arg ListAppointmentsByProfessionalAndDateRangeParams) ([]Appointment, error) {
-	rows, err := q.db.QueryContext(ctx, listAppointmentsByProfessionalAndDateRange, arg.ProfessionalID, arg.Date, arg.Date_2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Appointment
-	for rows.Next() {
-		var i Appointment
-		if err := rows.Scan(
-			&i.ID,
-			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
 			&i.ServiceID,
 			&i.ClientName,
 			&i.ClientPhone,
@@ -374,7 +277,7 @@ func (q *Queries) ListAppointmentsByProfessionalAndDateRange(ctx context.Context
 }
 
 const listAppointmentsBySalonID = `-- name: ListAppointmentsBySalonID :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
 WHERE salon_id = $1
 ORDER BY date DESC, start_time DESC
 `
@@ -391,7 +294,7 @@ func (q *Queries) ListAppointmentsBySalonID(ctx context.Context, salonID uuid.UU
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
 			&i.ServiceID,
 			&i.ClientName,
 			&i.ClientPhone,
@@ -417,7 +320,7 @@ func (q *Queries) ListAppointmentsBySalonID(ctx context.Context, salonID uuid.UU
 }
 
 const listAppointmentsByStatus = `-- name: ListAppointmentsByStatus :many
-SELECT id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
 WHERE salon_id = $1 AND status = $2
 ORDER BY date DESC, start_time DESC
 `
@@ -439,7 +342,104 @@ func (q *Queries) ListAppointmentsByStatus(ctx context.Context, arg ListAppointm
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
+			&i.ServiceID,
+			&i.ClientName,
+			&i.ClientPhone,
+			&i.ClientEmail,
+			&i.Date,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Status,
+			&i.Notes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAppointmentsByUser = `-- name: ListAppointmentsByUser :many
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+WHERE user_id = $1 AND date = $2
+ORDER BY start_time
+`
+
+type ListAppointmentsByUserParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Date   time.Time `json:"date"`
+}
+
+func (q *Queries) ListAppointmentsByUser(ctx context.Context, arg ListAppointmentsByUserParams) ([]Appointment, error) {
+	rows, err := q.db.QueryContext(ctx, listAppointmentsByUser, arg.UserID, arg.Date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Appointment
+	for rows.Next() {
+		var i Appointment
+		if err := rows.Scan(
+			&i.ID,
+			&i.SalonID,
+			&i.UserID,
+			&i.ServiceID,
+			&i.ClientName,
+			&i.ClientPhone,
+			&i.ClientEmail,
+			&i.Date,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Status,
+			&i.Notes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAppointmentsByUserAndDateRange = `-- name: ListAppointmentsByUserAndDateRange :many
+SELECT id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at FROM appointments
+WHERE user_id = $1 AND date BETWEEN $2 AND $3
+ORDER BY date, start_time
+`
+
+type ListAppointmentsByUserAndDateRangeParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Date   time.Time `json:"date"`
+	Date_2 time.Time `json:"date_2"`
+}
+
+func (q *Queries) ListAppointmentsByUserAndDateRange(ctx context.Context, arg ListAppointmentsByUserAndDateRangeParams) ([]Appointment, error) {
+	rows, err := q.db.QueryContext(ctx, listAppointmentsByUserAndDateRange, arg.UserID, arg.Date, arg.Date_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Appointment
+	for rows.Next() {
+		var i Appointment
+		if err := rows.Scan(
+			&i.ID,
+			&i.SalonID,
+			&i.UserID,
 			&i.ServiceID,
 			&i.ClientName,
 			&i.ClientPhone,
@@ -473,7 +473,7 @@ SET
     status = COALESCE($5, status),
     notes = COALESCE($6, notes)
 WHERE id = $1
-RETURNING id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at
+RETURNING id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at
 `
 
 type UpdateAppointmentParams struct {
@@ -498,7 +498,7 @@ func (q *Queries) UpdateAppointment(ctx context.Context, arg UpdateAppointmentPa
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.ServiceID,
 		&i.ClientName,
 		&i.ClientPhone,
@@ -517,7 +517,7 @@ const updateAppointmentStatus = `-- name: UpdateAppointmentStatus :one
 UPDATE appointments
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, salon_id, professional_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at
+RETURNING id, salon_id, user_id, service_id, client_name, client_phone, client_email, date, start_time, end_time, status, notes, created_at
 `
 
 type UpdateAppointmentStatusParams struct {
@@ -531,7 +531,7 @@ func (q *Queries) UpdateAppointmentStatus(ctx context.Context, arg UpdateAppoint
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.ServiceID,
 		&i.ClientName,
 		&i.ClientPhone,

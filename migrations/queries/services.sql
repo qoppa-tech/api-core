@@ -1,7 +1,7 @@
 -- name: CreateService :one
 INSERT INTO services (
     salon_id,
-    professional_id,
+    user_id,
     name,
     duration,
     price,
@@ -24,14 +24,14 @@ SELECT * FROM services
 WHERE salon_id = $1 AND active = true
 ORDER BY name;
 
--- name: ListServicesByProfessionalID :many
+-- name: ListServicesByUserID :many
 SELECT * FROM services
-WHERE professional_id = $1 AND active = true
+WHERE user_id = $1 AND active = true
 ORDER BY name;
 
--- name: ListServicesBySalonAndProfessional :many
+-- name: ListServicesBySalonAndUser :many
 SELECT * FROM services
-WHERE salon_id = $1 AND (professional_id = $2 OR professional_id IS NULL) AND active = true
+WHERE salon_id = $1 AND (user_id = $2 OR user_id IS NULL) AND active = true
 ORDER BY name;
 
 -- name: UpdateService :one
@@ -41,7 +41,7 @@ SET
     duration = COALESCE(sqlc.narg(duration), duration),
     price = COALESCE(sqlc.narg(price), price),
     active = COALESCE(sqlc.narg(active), active),
-    professional_id = COALESCE(sqlc.narg(professional_id), professional_id)
+    user_id = COALESCE(sqlc.narg(user_id), user_id)
 WHERE id = $1
 RETURNING *;
 
