@@ -1,3 +1,11 @@
+## [2.2.1](https://github.com/parlorhub/api-core/compare/v2.2.0...v2.2.1) (2025-12-05)
+
+### Bug Fixes
+
+* merge sql ([8cd1b1b](https://github.com/parlorhub/api-core/commit/8cd1b1b6ed487e7da567b3a1bfe720cd10cf1bf2))
+* merge sql migrations ([bab35bb](https://github.com/parlorhub/api-core/commit/bab35bb0d357e3a34b230ec4347c574df9ee3f66))
+* merge sql migrations ([5f8d065](https://github.com/parlorhub/api-core/commit/5f8d065b929dec8b7e18fad2237e58c934d7c4a6))
+
 ## [2.2.0](https://github.com/parlorhub/api-core/compare/v2.1.0...v2.2.0) (2025-12-04)
 
 ### Features
