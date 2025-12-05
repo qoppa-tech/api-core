@@ -1,7 +1,7 @@
 -- name: CreateAppointment :one
 INSERT INTO appointments (
     salon_id,
-    professional_id,
+    user_id,
     service_id,
     client_name,
     client_phone,
@@ -34,14 +34,14 @@ SELECT * FROM appointments
 WHERE salon_id = $1 AND date BETWEEN $2 AND $3
 ORDER BY date, start_time;
 
--- name: ListAppointmentsByProfessional :many
+-- name: ListAppointmentsByUser :many
 SELECT * FROM appointments
-WHERE professional_id = $1 AND date = $2
+WHERE user_id = $1 AND date = $2
 ORDER BY start_time;
 
--- name: ListAppointmentsByProfessionalAndDateRange :many
+-- name: ListAppointmentsByUserAndDateRange :many
 SELECT * FROM appointments
-WHERE professional_id = $1 AND date BETWEEN $2 AND $3
+WHERE user_id = $1 AND date BETWEEN $2 AND $3
 ORDER BY date, start_time;
 
 -- name: ListAppointmentsByStatus :many
@@ -75,6 +75,6 @@ RETURNING *;
 DELETE FROM appointments
 WHERE id = $1;
 
--- name: CountAppointmentsByProfessionalAndDate :one
+-- name: CountAppointmentsByUserAndDate :one
 SELECT COUNT(*) FROM appointments
-WHERE professional_id = $1 AND date = $2 AND status NOT IN ('cancelled', 'no-show');
+WHERE user_id = $1 AND date = $2 AND status NOT IN ('cancelled', 'no-show');

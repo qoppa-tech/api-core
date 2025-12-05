@@ -15,7 +15,7 @@ COPY migrations ./migrations
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     mkdir -p /out && go build -trimpath -ldflags="-s -w" -o /out/main ./cmd/api
-# Copy docs after the build so doc edits don't bust the go build cache
+    
 COPY docs ./docs
 
 FROM scratch AS prod

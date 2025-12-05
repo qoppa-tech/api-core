@@ -233,19 +233,19 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Appointment struct {
-	ID             uuid.UUID         `json:"id"`
-	SalonID        uuid.UUID         `json:"salon_id"`
-	ProfessionalID uuid.UUID         `json:"professional_id"`
-	ServiceID      uuid.UUID         `json:"service_id"`
-	ClientName     string            `json:"client_name"`
-	ClientPhone    string            `json:"client_phone"`
-	ClientEmail    sql.NullString    `json:"client_email"`
-	Date           time.Time         `json:"date"`
-	StartTime      time.Time         `json:"start_time"`
-	EndTime        time.Time         `json:"end_time"`
-	Status         AppointmentStatus `json:"status"`
-	Notes          sql.NullString    `json:"notes"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID          uuid.UUID         `json:"id"`
+	SalonID     uuid.UUID         `json:"salon_id"`
+	UserID      uuid.UUID         `json:"user_id"`
+	ServiceID   uuid.UUID         `json:"service_id"`
+	ClientName  string            `json:"client_name"`
+	ClientPhone string            `json:"client_phone"`
+	ClientEmail sql.NullString    `json:"client_email"`
+	Date        time.Time         `json:"date"`
+	StartTime   time.Time         `json:"start_time"`
+	EndTime     time.Time         `json:"end_time"`
+	Status      AppointmentStatus `json:"status"`
+	Notes       sql.NullString    `json:"notes"`
+	CreatedAt   time.Time         `json:"created_at"`
 }
 
 type Client struct {
@@ -293,17 +293,6 @@ type OnboardingStep struct {
 	ID int32 `json:"id"`
 }
 
-type Professional struct {
-	ID        uuid.UUID      `json:"id"`
-	UserID    uuid.UUID      `json:"user_id"`
-	SalonID   uuid.UUID      `json:"salon_id"`
-	Name      string         `json:"name"`
-	PhotoUrl  sql.NullString `json:"photo_url"`
-	Active    bool           `json:"active"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-}
-
 type Salon struct {
 	ID            uuid.UUID       `json:"id"`
 	Name          string          `json:"name"`
@@ -322,19 +311,19 @@ type SalonOnboardingSelection struct {
 	SalonID     uuid.UUID     `json:"salon_id"`
 	StepID      int32         `json:"step_id"`
 	OptionIndex int32         `json:"option_index"`
-	ChosenAt    time.Time     `json:"chosen_at"`
 	UserID      uuid.NullUUID `json:"user_id"`
+	ChosenAt    time.Time     `json:"chosen_at"`
 }
 
 type Service struct {
-	ID             uuid.UUID     `json:"id"`
-	SalonID        uuid.UUID     `json:"salon_id"`
-	ProfessionalID uuid.NullUUID `json:"professional_id"`
-	Name           string        `json:"name"`
-	Duration       int32         `json:"duration"`
-	Price          int32         `json:"price"`
-	Active         bool          `json:"active"`
-	CreatedAt      time.Time     `json:"created_at"`
+	ID        uuid.UUID     `json:"id"`
+	SalonID   uuid.UUID     `json:"salon_id"`
+	UserID    uuid.NullUUID `json:"user_id"`
+	Name      string        `json:"name"`
+	Duration  int32         `json:"duration"`
+	Price     int32         `json:"price"`
+	Active    bool          `json:"active"`
+	CreatedAt time.Time     `json:"created_at"`
 }
 
 type Sso struct {
@@ -354,8 +343,8 @@ type User struct {
 	Phone                   string        `json:"phone"`
 	Role                    UserRole      `json:"role"`
 	SalonID                 uuid.NullUUID `json:"salon_id"`
-	CreatedAt               time.Time     `json:"created_at"`
-	UpdatedAt               time.Time     `json:"updated_at"`
 	CurrentOnboardingStepID sql.NullInt32 `json:"current_onboarding_step_id"`
 	OnboardingCompletedAt   sql.NullTime  `json:"onboarding_completed_at"`
+	CreatedAt               time.Time     `json:"created_at"`
+	UpdatedAt               time.Time     `json:"updated_at"`
 }

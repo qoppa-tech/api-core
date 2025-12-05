@@ -15,29 +15,29 @@ import (
 const createService = `-- name: CreateService :one
 INSERT INTO services (
     salon_id,
-    professional_id,
+    user_id,
     name,
     duration,
     price,
     active
 ) VALUES (
     $1, $2, $3, $4, $5, $6
-) RETURNING id, salon_id, professional_id, name, duration, price, active, created_at
+) RETURNING id, salon_id, user_id, name, duration, price, active, created_at
 `
 
 type CreateServiceParams struct {
-	SalonID        uuid.UUID     `json:"salon_id"`
-	ProfessionalID uuid.NullUUID `json:"professional_id"`
-	Name           string        `json:"name"`
-	Duration       int32         `json:"duration"`
-	Price          int32         `json:"price"`
-	Active         bool          `json:"active"`
+	SalonID  uuid.UUID     `json:"salon_id"`
+	UserID   uuid.NullUUID `json:"user_id"`
+	Name     string        `json:"name"`
+	Duration int32         `json:"duration"`
+	Price    int32         `json:"price"`
+	Active   bool          `json:"active"`
 }
 
 func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
 	row := q.db.QueryRowContext(ctx, createService,
 		arg.SalonID,
-		arg.ProfessionalID,
+		arg.UserID,
 		arg.Name,
 		arg.Duration,
 		arg.Price,
@@ -47,7 +47,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.Name,
 		&i.Duration,
 		&i.Price,
@@ -68,7 +68,7 @@ func (q *Queries) DeleteService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, salon_id, professional_id, name, duration, price, active, created_at FROM services
+SELECT id, salon_id, user_id, name, duration, price, active, created_at FROM services
 WHERE id = $1 LIMIT 1
 `
 
@@ -78,7 +78,7 @@ func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, er
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.Name,
 		&i.Duration,
 		&i.Price,
@@ -89,7 +89,7 @@ func (q *Queries) GetServiceByID(ctx context.Context, id uuid.UUID) (Service, er
 }
 
 const listActiveServicesBySalonID = `-- name: ListActiveServicesBySalonID :many
-SELECT id, salon_id, professional_id, name, duration, price, active, created_at FROM services
+SELECT id, salon_id, user_id, name, duration, price, active, created_at FROM services
 WHERE salon_id = $1 AND active = true
 ORDER BY name
 `
@@ -106,7 +106,7 @@ func (q *Queries) ListActiveServicesBySalonID(ctx context.Context, salonID uuid.
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
 			&i.Name,
 			&i.Duration,
 			&i.Price,
@@ -126,14 +126,19 @@ func (q *Queries) ListActiveServicesBySalonID(ctx context.Context, salonID uuid.
 	return items, nil
 }
 
-const listServicesByProfessionalID = `-- name: ListServicesByProfessionalID :many
-SELECT id, salon_id, professional_id, name, duration, price, active, created_at FROM services
-WHERE professional_id = $1 AND active = true
+const listServicesBySalonAndUser = `-- name: ListServicesBySalonAndUser :many
+SELECT id, salon_id, user_id, name, duration, price, active, created_at FROM services
+WHERE salon_id = $1 AND (user_id = $2 OR user_id IS NULL) AND active = true
 ORDER BY name
 `
 
-func (q *Queries) ListServicesByProfessionalID(ctx context.Context, professionalID uuid.NullUUID) ([]Service, error) {
-	rows, err := q.db.QueryContext(ctx, listServicesByProfessionalID, professionalID)
+type ListServicesBySalonAndUserParams struct {
+	SalonID uuid.UUID     `json:"salon_id"`
+	UserID  uuid.NullUUID `json:"user_id"`
+}
+
+func (q *Queries) ListServicesBySalonAndUser(ctx context.Context, arg ListServicesBySalonAndUserParams) ([]Service, error) {
+	rows, err := q.db.QueryContext(ctx, listServicesBySalonAndUser, arg.SalonID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,50 +149,7 @@ func (q *Queries) ListServicesByProfessionalID(ctx context.Context, professional
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
-			&i.Name,
-			&i.Duration,
-			&i.Price,
-			&i.Active,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listServicesBySalonAndProfessional = `-- name: ListServicesBySalonAndProfessional :many
-SELECT id, salon_id, professional_id, name, duration, price, active, created_at FROM services
-WHERE salon_id = $1 AND (professional_id = $2 OR professional_id IS NULL) AND active = true
-ORDER BY name
-`
-
-type ListServicesBySalonAndProfessionalParams struct {
-	SalonID        uuid.UUID     `json:"salon_id"`
-	ProfessionalID uuid.NullUUID `json:"professional_id"`
-}
-
-func (q *Queries) ListServicesBySalonAndProfessional(ctx context.Context, arg ListServicesBySalonAndProfessionalParams) ([]Service, error) {
-	rows, err := q.db.QueryContext(ctx, listServicesBySalonAndProfessional, arg.SalonID, arg.ProfessionalID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Service
-	for rows.Next() {
-		var i Service
-		if err := rows.Scan(
-			&i.ID,
-			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
 			&i.Name,
 			&i.Duration,
 			&i.Price,
@@ -208,7 +170,7 @@ func (q *Queries) ListServicesBySalonAndProfessional(ctx context.Context, arg Li
 }
 
 const listServicesBySalonID = `-- name: ListServicesBySalonID :many
-SELECT id, salon_id, professional_id, name, duration, price, active, created_at FROM services
+SELECT id, salon_id, user_id, name, duration, price, active, created_at FROM services
 WHERE salon_id = $1
 ORDER BY name
 `
@@ -225,7 +187,45 @@ func (q *Queries) ListServicesBySalonID(ctx context.Context, salonID uuid.UUID) 
 		if err := rows.Scan(
 			&i.ID,
 			&i.SalonID,
-			&i.ProfessionalID,
+			&i.UserID,
+			&i.Name,
+			&i.Duration,
+			&i.Price,
+			&i.Active,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServicesByUserID = `-- name: ListServicesByUserID :many
+SELECT id, salon_id, user_id, name, duration, price, active, created_at FROM services
+WHERE user_id = $1 AND active = true
+ORDER BY name
+`
+
+func (q *Queries) ListServicesByUserID(ctx context.Context, userID uuid.NullUUID) ([]Service, error) {
+	rows, err := q.db.QueryContext(ctx, listServicesByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Service
+	for rows.Next() {
+		var i Service
+		if err := rows.Scan(
+			&i.ID,
+			&i.SalonID,
+			&i.UserID,
 			&i.Name,
 			&i.Duration,
 			&i.Price,
@@ -252,18 +252,18 @@ SET
     duration = COALESCE($3, duration),
     price = COALESCE($4, price),
     active = COALESCE($5, active),
-    professional_id = COALESCE($6, professional_id)
+    user_id = COALESCE($6, user_id)
 WHERE id = $1
-RETURNING id, salon_id, professional_id, name, duration, price, active, created_at
+RETURNING id, salon_id, user_id, name, duration, price, active, created_at
 `
 
 type UpdateServiceParams struct {
-	ID             uuid.UUID      `json:"id"`
-	Name           sql.NullString `json:"name"`
-	Duration       sql.NullInt32  `json:"duration"`
-	Price          sql.NullInt32  `json:"price"`
-	Active         sql.NullBool   `json:"active"`
-	ProfessionalID uuid.NullUUID  `json:"professional_id"`
+	ID       uuid.UUID      `json:"id"`
+	Name     sql.NullString `json:"name"`
+	Duration sql.NullInt32  `json:"duration"`
+	Price    sql.NullInt32  `json:"price"`
+	Active   sql.NullBool   `json:"active"`
+	UserID   uuid.NullUUID  `json:"user_id"`
 }
 
 func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
@@ -273,13 +273,13 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.Duration,
 		arg.Price,
 		arg.Active,
-		arg.ProfessionalID,
+		arg.UserID,
 	)
 	var i Service
 	err := row.Scan(
 		&i.ID,
 		&i.SalonID,
-		&i.ProfessionalID,
+		&i.UserID,
 		&i.Name,
 		&i.Duration,
 		&i.Price,
