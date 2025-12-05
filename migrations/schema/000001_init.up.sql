@@ -1,5 +1,3 @@
--- Base schema with all migrations merged; professionals removed and professional references now point to users
-
 CREATE TYPE user_role AS ENUM('admin', 'owner', 'employee', 'customer');
 CREATE TYPE appointment_status AS ENUM ('pending', 'confirmed', 'cancelled', 'done', 'no-show');
 CREATE TYPE notification_type AS ENUM ('whatsapp', 'email', 'sms'); -- SMS dont exist
