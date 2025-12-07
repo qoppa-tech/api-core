@@ -22,6 +22,14 @@ tags:
     description: Contact form endpoints
   - name: Onboarding
     description: User onboarding endpoints
+  - name: Clients
+    description: Client management endpoints
+  - name: Appointments
+    description: Appointment management endpoints
+  - name: Salons
+    description: Salon management endpoints
+  - name: Services
+    description: Service management endpoints
 
 paths:
   /health:
@@ -333,6 +341,992 @@ paths:
         '401':
           description: Unauthorized
 
+  # ==================== CLIENTS ====================
+  /clients:
+    post:
+      tags:
+        - Clients
+      summary: Create a new client
+      description: Creates a new client for a salon
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+      responses:
+        '201':
+          description: Client created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '400':
+          description: Bad request - invalid input
+        '401':
+          description: Unauthorized
+    get:
+      tags:
+        - Clients
+      summary: List clients by salon
+      description: Returns all clients for a specific salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Salon ID to filter clients
+      responses:
+        '200':
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientResponse'
+        '400':
+          description: Bad request - missing or invalid salon_id
+        '401':
+          description: Unauthorized
+
+  /clients/search:
+    get:
+      tags:
+        - Clients
+      summary: Search clients
+      description: Search clients by name or phone within a salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (name or phone)
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /clients/by-phone:
+    get:
+      tags:
+        - Clients
+      summary: Get client by phone
+      description: Find a client by phone number within a salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: phone
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Client found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Client not found
+
+  /clients/{id}:
+    get:
+      tags:
+        - Clients
+      summary: Get client by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Client details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '400':
+          description: Invalid client ID
+        '401':
+          description: Unauthorized
+        '404':
+          description: Client not found
+    patch:
+      tags:
+        - Clients
+      summary: Update client
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClientRequest'
+      responses:
+        '200':
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Client not found
+    delete:
+      tags:
+        - Clients
+      summary: Delete client
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Client deleted
+        '400':
+          description: Invalid client ID
+        '401':
+          description: Unauthorized
+
+  # ==================== APPOINTMENTS ====================
+  /appointments:
+    post:
+      tags:
+        - Appointments
+      summary: Create a new appointment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppointmentRequest'
+      responses:
+        '201':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+    get:
+      tags:
+        - Appointments
+      summary: List appointments by salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/by-date:
+    get:
+      tags:
+        - Appointments
+      summary: List appointments by date
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date in YYYY-MM-DD format
+      responses:
+        '200':
+          description: Appointments for the date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/by-date-range:
+    get:
+      tags:
+        - Appointments
+      summary: List appointments by date range
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Appointments in date range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/by-user:
+    get:
+      tags:
+        - Appointments
+      summary: List appointments by user (professional)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User's appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/by-status:
+    get:
+      tags:
+        - Appointments
+      summary: List appointments by status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, done, no-show]
+      responses:
+        '200':
+          description: Appointments with status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/by-client-phone:
+    get:
+      tags:
+        - Appointments
+      summary: List appointments by client phone
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: phone
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Client's appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/count:
+    get:
+      tags:
+        - Appointments
+      summary: Count appointments by user and date
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Appointment count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /appointments/{id}:
+    get:
+      tags:
+        - Appointments
+      summary: Get appointment by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Invalid appointment ID
+        '401':
+          description: Unauthorized
+        '404':
+          description: Appointment not found
+    patch:
+      tags:
+        - Appointments
+      summary: Update appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAppointmentRequest'
+      responses:
+        '200':
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Appointment not found
+    delete:
+      tags:
+        - Appointments
+      summary: Delete appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Appointment deleted
+        '400':
+          description: Invalid appointment ID
+        '401':
+          description: Unauthorized
+
+  /appointments/{id}/status:
+    patch:
+      tags:
+        - Appointments
+      summary: Update appointment status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAppointmentStatusRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Appointment not found
+
+  # ==================== SALONS ====================
+  /salons:
+    post:
+      tags:
+        - Salons
+      summary: Create a new salon
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSalonRequest'
+      responses:
+        '201':
+          description: Salon created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalonResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+    get:
+      tags:
+        - Salons
+      summary: List all salons
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of salons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalonResponse'
+        '401':
+          description: Unauthorized
+
+  /salons/by-slug:
+    get:
+      tags:
+        - Salons
+      summary: Get salon by slug
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Salon details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalonResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Salon not found
+
+  /salons/by-owner:
+    get:
+      tags:
+        - Salons
+      summary: Get salon by owner ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: owner_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Salon details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalonResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Salon not found
+
+  /salons/{id}:
+    get:
+      tags:
+        - Salons
+      summary: Get salon by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Salon details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalonResponse'
+        '400':
+          description: Invalid salon ID
+        '401':
+          description: Unauthorized
+        '404':
+          description: Salon not found
+    patch:
+      tags:
+        - Salons
+      summary: Update salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSalonRequest'
+      responses:
+        '200':
+          description: Salon updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalonResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Salon not found
+    delete:
+      tags:
+        - Salons
+      summary: Delete salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Salon deleted
+        '400':
+          description: Invalid salon ID
+        '401':
+          description: Unauthorized
+
+  # ==================== SERVICES ====================
+  /services:
+    post:
+      tags:
+        - Services
+      summary: Create a new service
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceRequest'
+      responses:
+        '201':
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+    get:
+      tags:
+        - Services
+      summary: List services by salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /services/active:
+    get:
+      tags:
+        - Services
+      summary: List active services by salon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of active services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /services/by-user:
+    get:
+      tags:
+        - Services
+      summary: List services by user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User's services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /services/by-salon-and-user:
+    get:
+      tags:
+        - Services
+      summary: List services by salon and user
+      description: Returns services assigned to a specific user plus unassigned services
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: salon_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Services for salon and user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /services/{id}:
+    get:
+      tags:
+        - Services
+      summary: Get service by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Invalid service ID
+        '401':
+          description: Unauthorized
+        '404':
+          description: Service not found
+    patch:
+      tags:
+        - Services
+      summary: Update service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceRequest'
+      responses:
+        '200':
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Service not found
+    delete:
+      tags:
+        - Services
+      summary: Delete service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Service deleted
+        '400':
+          description: Invalid service ID
+        '401':
+          description: Unauthorized
+
 components:
   securitySchemes:
     bearerAuth:
@@ -630,3 +1624,365 @@ components:
           type: boolean
           example: true
           description: Whether the user has completed all onboarding steps
+
+    # ==================== CLIENT SCHEMAS ====================
+    CreateClientRequest:
+      type: object
+      required:
+        - salon_id
+        - name
+        - phone
+      properties:
+        salon_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          example: "Maria Silva"
+        phone:
+          type: string
+          example: "+5511999999999"
+        email:
+          type: string
+          format: email
+          example: "maria@example.com"
+        birthday:
+          type: string
+          format: date-time
+          example: "1990-05-15T00:00:00Z"
+
+    UpdateClientRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        birthday:
+          type: string
+          format: date-time
+
+    ClientResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        salon_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          nullable: true
+        birthday:
+          type: string
+          format: date-time
+          nullable: true
+        total_appointments:
+          type: integer
+        last_appointment:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # ==================== APPOINTMENT SCHEMAS ====================
+    CreateAppointmentRequest:
+      type: object
+      required:
+        - salon_id
+        - user_id
+        - service_id
+        - client_name
+        - client_phone
+        - date
+        - start_time
+        - end_time
+      properties:
+        salon_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          description: The user (professional) assigned to the appointment
+        service_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+          minLength: 1
+          example: "Maria Silva"
+        client_phone:
+          type: string
+          example: "+5511999999999"
+        client_email:
+          type: string
+          format: email
+        date:
+          type: string
+          format: date
+          example: "2025-01-15"
+        start_time:
+          type: string
+          example: "09:00"
+          description: Time in HH:MM format
+        end_time:
+          type: string
+          example: "10:00"
+          description: Time in HH:MM format
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, done, no-show]
+          default: pending
+        notes:
+          type: string
+
+    UpdateAppointmentRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          description: Time in HH:MM format
+        end_time:
+          type: string
+          description: Time in HH:MM format
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, done, no-show]
+        notes:
+          type: string
+
+    UpdateAppointmentStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, done, no-show]
+
+    AppointmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        salon_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        client_phone:
+          type: string
+        client_email:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          description: Time in HH:MM format
+        end_time:
+          type: string
+          description: Time in HH:MM format
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, done, no-show]
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # ==================== SALON SCHEMAS ====================
+    CreateSalonRequest:
+      type: object
+      required:
+        - name
+        - slug
+        - owner_id
+        - address
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Beauty Studio"
+        slug:
+          type: string
+          minLength: 1
+          example: "beauty-studio"
+          description: URL-friendly identifier
+        owner_id:
+          type: string
+          format: uuid
+        address:
+          type: string
+          example: "123 Main St, City"
+        whatsapp:
+          type: string
+          example: "+5511999999999"
+        business_hours:
+          type: object
+          description: JSON object with business hours per day
+          example:
+            monday: ["09:00-12:00", "14:00-18:00"]
+            tuesday: ["09:00-12:00", "14:00-18:00"]
+        logo_url:
+          type: string
+          format: uri
+
+    UpdateSalonRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          minLength: 1
+        address:
+          type: string
+        whatsapp:
+          type: string
+        business_hours:
+          type: object
+        logo_url:
+          type: string
+          format: uri
+
+    SalonResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+        address:
+          type: string
+        whatsapp:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+          example: "UTC"
+        business_hours:
+          type: object
+        logo_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ==================== SERVICE SCHEMAS ====================
+    CreateServiceRequest:
+      type: object
+      required:
+        - salon_id
+        - name
+        - duration
+        - price
+      properties:
+        salon_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          description: Optional user (professional) this service is assigned to
+        name:
+          type: string
+          minLength: 1
+          example: "Haircut"
+        duration:
+          type: integer
+          minimum: 1
+          example: 30
+          description: Duration in minutes
+        price:
+          type: integer
+          minimum: 0
+          example: 5000
+          description: Price in cents
+        active:
+          type: boolean
+          default: true
+
+    UpdateServiceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        duration:
+          type: integer
+          minimum: 1
+          description: Duration in minutes
+        price:
+          type: integer
+          minimum: 0
+          description: Price in cents
+        active:
+          type: boolean
+        user_id:
+          type: string
+          format: uuid
+
+    ServiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        salon_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        duration:
+          type: integer
+          description: Duration in minutes
+        price:
+          type: integer
+          description: Price in cents
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
