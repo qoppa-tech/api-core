@@ -13,6 +13,10 @@ import (
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
+	"github.com/parlorhub/api-core/internal/modules/managment/appointment"
+	"github.com/parlorhub/api-core/internal/modules/managment/clients"
+	"github.com/parlorhub/api-core/internal/modules/managment/salons"
+	"github.com/parlorhub/api-core/internal/modules/managment/services"
 	"github.com/parlorhub/api-core/internal/modules/onboarding"
 	"github.com/parlorhub/api-core/internal/modules/profile"
 	"github.com/parlorhub/api-core/internal/modules/sso"
@@ -28,6 +32,10 @@ type Server struct {
 	onboardingHandler  *onboarding.OnboardingHandler
 	rbacMiddleware     *rbac.RbacMiddleware
 	ssoHandler         *sso.SSOHandler
+	clientsHandler     *clients.ClientsHandler
+	appointmentHandler *appointment.AppointmentHandler
+	salonsHandler      *salons.SalonsHandler
+	servicesHandler    *services.ServicesHandler
 }
 
 func NewServer() *http.Server {
@@ -46,6 +54,10 @@ func NewServer() *http.Server {
 	contactFormHandler := contactform.NewContactFormHandler(db.GetDB())
 	onboardingHandler := onboarding.NewOnboardingHandler(db.GetDB())
 	rbacMiddleware := rbac.NewRbacMiddleware(db.GetDB())
+	clientsHandler := clients.NewClientsHandler(db.GetDB())
+	appointmentHandler := appointment.NewAppointmentHandler(db.GetDB())
+	salonsHandler := salons.NewSalonsHandler(db.GetDB())
+	servicesHandler := services.NewServicesHandler(db.GetDB())
 
 	NewServer := &Server{
 		port: port,
@@ -57,6 +69,10 @@ func NewServer() *http.Server {
 		contactFormHandler: contactFormHandler,
 		onboardingHandler:  onboardingHandler,
 		ssoHandler:         sso.NewSSOHandler(db.GetDB(), authHandler.GetService()),
+		clientsHandler:     clientsHandler,
+		appointmentHandler: appointmentHandler,
+		salonsHandler:      salonsHandler,
+		servicesHandler:    servicesHandler,
 	}
 
 	server := &http.Server{
