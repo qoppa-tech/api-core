@@ -57,6 +57,60 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/contact-form", auth.AuthMiddleware(s.authHandler.GetService()), s.contactFormHandler.ListContactForms)
 
+	clientsGroup := r.Group("/clients")
+	clientsGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	{
+		clientsGroup.POST("", s.clientsHandler.CreateClient)
+		clientsGroup.GET("", s.clientsHandler.ListClients)
+		clientsGroup.GET("/search", s.clientsHandler.SearchClients)
+		clientsGroup.GET("/by-phone", s.clientsHandler.GetClientByPhone)
+		clientsGroup.GET("/:id", s.clientsHandler.GetClient)
+		clientsGroup.PATCH("/:id", s.clientsHandler.UpdateClient)
+		clientsGroup.DELETE("/:id", s.clientsHandler.DeleteClient)
+	}
+
+	appointmentsGroup := r.Group("/appointments")
+	appointmentsGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	{
+		appointmentsGroup.POST("", s.appointmentHandler.CreateAppointment)
+		appointmentsGroup.GET("", s.appointmentHandler.ListAppointments)
+		appointmentsGroup.GET("/by-date", s.appointmentHandler.ListAppointmentsByDate)
+		appointmentsGroup.GET("/by-date-range", s.appointmentHandler.ListAppointmentsByDateRange)
+		appointmentsGroup.GET("/by-user", s.appointmentHandler.ListAppointmentsByUser)
+		appointmentsGroup.GET("/by-status", s.appointmentHandler.ListAppointmentsByStatus)
+		appointmentsGroup.GET("/by-client-phone", s.appointmentHandler.ListAppointmentsByClientPhone)
+		appointmentsGroup.GET("/count", s.appointmentHandler.CountAppointmentsByUserAndDate)
+		appointmentsGroup.GET("/:id", s.appointmentHandler.GetAppointment)
+		appointmentsGroup.PATCH("/:id", s.appointmentHandler.UpdateAppointment)
+		appointmentsGroup.PATCH("/:id/status", s.appointmentHandler.UpdateAppointmentStatus)
+		appointmentsGroup.DELETE("/:id", s.appointmentHandler.DeleteAppointment)
+	}
+
+	salonsGroup := r.Group("/salons")
+	salonsGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	{
+		salonsGroup.POST("", s.salonsHandler.CreateSalon)
+		salonsGroup.GET("", s.salonsHandler.ListSalons)
+		salonsGroup.GET("/by-slug", s.salonsHandler.GetSalonBySlug)
+		salonsGroup.GET("/by-owner", s.salonsHandler.GetSalonByOwner)
+		salonsGroup.GET("/:id", s.salonsHandler.GetSalon)
+		salonsGroup.PATCH("/:id", s.salonsHandler.UpdateSalon)
+		salonsGroup.DELETE("/:id", s.salonsHandler.DeleteSalon)
+	}
+
+	servicesGroup := r.Group("/services")
+	servicesGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	{
+		servicesGroup.POST("", s.servicesHandler.CreateService)
+		servicesGroup.GET("", s.servicesHandler.ListServices)
+		servicesGroup.GET("/active", s.servicesHandler.ListActiveServices)
+		servicesGroup.GET("/by-user", s.servicesHandler.ListServicesByUser)
+		servicesGroup.GET("/by-salon-and-user", s.servicesHandler.ListServicesBySalonAndUser)
+		servicesGroup.GET("/:id", s.servicesHandler.GetService)
+		servicesGroup.PATCH("/:id", s.servicesHandler.UpdateService)
+		servicesGroup.DELETE("/:id", s.servicesHandler.DeleteService)
+	}
+
 	r.Static("/swagger", "./docs")
 	r.GET("/docs", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/swagger/swagger.html")
