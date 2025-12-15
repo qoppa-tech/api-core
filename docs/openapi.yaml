@@ -1823,7 +1823,6 @@ components:
       required:
         - name
         - slug
-        - owner_id
         - address
       properties:
         name:
@@ -1835,9 +1834,6 @@ components:
           minLength: 1
           example: "beauty-studio"
           description: URL-friendly identifier
-        owner_id:
-          type: string
-          format: uuid
         address:
           type: string
           example: "123 Main St, City"

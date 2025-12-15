@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/parlorhub/api-core/internal/database/sqlc"
 	"github.com/parlorhub/api-core/internal/logger"
 	"github.com/parlorhub/api-core/internal/middleware/auth"
 	"github.com/parlorhub/api-core/internal/middleware/origin"
@@ -88,6 +89,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	salonsGroup := r.Group("/salons")
 	salonsGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	salonsGroup.Use(s.rbacMiddleware.RBACMiddleware(sqlc.UserRoleOwner))
 	{
 		salonsGroup.POST("", s.salonsHandler.CreateSalon)
 		salonsGroup.GET("", s.salonsHandler.ListSalons)
@@ -100,6 +102,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	servicesGroup := r.Group("/services")
 	servicesGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	servicesGroup.Use(s.rbacMiddleware.RBACMiddleware(sqlc.UserRoleOwner))
 	{
 		servicesGroup.POST("", s.servicesHandler.CreateService)
 		servicesGroup.GET("", s.servicesHandler.ListServices)

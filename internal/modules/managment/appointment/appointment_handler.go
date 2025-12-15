@@ -11,12 +11,12 @@ import (
 )
 
 type AppointmentHandler struct {
-	queries *sqlc.Queries
+	service *AppointmentService
 }
 
 func NewAppointmentHandler(db *sql.DB) *AppointmentHandler {
 	return &AppointmentHandler{
-		queries: sqlc.New(db),
+		service: NewAppointmentService(db),
 	}
 }
 
@@ -140,7 +140,7 @@ func (h *AppointmentHandler) CreateAppointment(ctx *gin.Context) {
 		params.Notes = sql.NullString{String: *req.Notes, Valid: true}
 	}
 
-	appointment, err := h.queries.CreateAppointment(ctx.Request.Context(), params)
+	appointment, err := h.service.CreateAppointment(ctx.Request.Context(), params)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create appointment"})
 		return
@@ -157,13 +157,14 @@ func (h *AppointmentHandler) GetAppointment(ctx *gin.Context) {
 		return
 	}
 
-	appointment, err := h.queries.GetAppointmentByID(ctx.Request.Context(), id)
+	appointment, err := h.service.GetAppointmentByID(ctx.Request.Context(), id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrAppointmentNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get appointment"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get appointment"})
 		return
 	}
 
@@ -183,7 +184,7 @@ func (h *AppointmentHandler) ListAppointments(ctx *gin.Context) {
 		return
 	}
 
-	appointments, err := h.queries.ListAppointmentsBySalonID(ctx.Request.Context(), salonID)
+	appointments, err := h.service.ListAppointmentsBySalonID(ctx.Request.Context(), salonID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list appointments"})
 		return
@@ -222,7 +223,7 @@ func (h *AppointmentHandler) ListAppointmentsByDate(ctx *gin.Context) {
 		return
 	}
 
-	appointments, err := h.queries.ListAppointmentsByDate(ctx.Request.Context(), sqlc.ListAppointmentsByDateParams{
+	appointments, err := h.service.ListAppointmentsByDate(ctx.Request.Context(), sqlc.ListAppointmentsByDateParams{
 		SalonID: salonID,
 		Date:    date,
 	})
@@ -271,7 +272,7 @@ func (h *AppointmentHandler) ListAppointmentsByDateRange(ctx *gin.Context) {
 		return
 	}
 
-	appointments, err := h.queries.ListAppointmentsByDateRange(ctx.Request.Context(), sqlc.ListAppointmentsByDateRangeParams{
+	appointments, err := h.service.ListAppointmentsByDateRange(ctx.Request.Context(), sqlc.ListAppointmentsByDateRangeParams{
 		SalonID: salonID,
 		Date:    startDate,
 		Date_2:  endDate,
@@ -314,7 +315,7 @@ func (h *AppointmentHandler) ListAppointmentsByUser(ctx *gin.Context) {
 		return
 	}
 
-	appointments, err := h.queries.ListAppointmentsByUser(ctx.Request.Context(), sqlc.ListAppointmentsByUserParams{
+	appointments, err := h.service.ListAppointmentsByUser(ctx.Request.Context(), sqlc.ListAppointmentsByUserParams{
 		UserID: userID,
 		Date:   date,
 	})
@@ -350,7 +351,7 @@ func (h *AppointmentHandler) ListAppointmentsByStatus(ctx *gin.Context) {
 		return
 	}
 
-	appointments, err := h.queries.ListAppointmentsByStatus(ctx.Request.Context(), sqlc.ListAppointmentsByStatusParams{
+	appointments, err := h.service.ListAppointmentsByStatus(ctx.Request.Context(), sqlc.ListAppointmentsByStatusParams{
 		SalonID: salonID,
 		Status:  sqlc.AppointmentStatus(status),
 	})
@@ -386,7 +387,7 @@ func (h *AppointmentHandler) ListAppointmentsByClientPhone(ctx *gin.Context) {
 		return
 	}
 
-	appointments, err := h.queries.ListAppointmentsByClientPhone(ctx.Request.Context(), sqlc.ListAppointmentsByClientPhoneParams{
+	appointments, err := h.service.ListAppointmentsByClientPhone(ctx.Request.Context(), sqlc.ListAppointmentsByClientPhoneParams{
 		SalonID:     salonID,
 		ClientPhone: phone,
 	})
@@ -464,13 +465,14 @@ func (h *AppointmentHandler) UpdateAppointment(ctx *gin.Context) {
 		params.Notes = sql.NullString{String: *req.Notes, Valid: true}
 	}
 
-	appointment, err := h.queries.UpdateAppointment(ctx.Request.Context(), params)
+	appointment, err := h.service.UpdateAppointment(ctx.Request.Context(), params)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrAppointmentNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update appointment"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update appointment"})
 		return
 	}
 
@@ -491,16 +493,17 @@ func (h *AppointmentHandler) UpdateAppointmentStatus(ctx *gin.Context) {
 		return
 	}
 
-	appointment, err := h.queries.UpdateAppointmentStatus(ctx.Request.Context(), sqlc.UpdateAppointmentStatusParams{
+	appointment, err := h.service.UpdateAppointmentStatus(ctx.Request.Context(), sqlc.UpdateAppointmentStatusParams{
 		ID:     id,
 		Status: sqlc.AppointmentStatus(req.Status),
 	})
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrAppointmentNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update appointment status"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update appointment status"})
 		return
 	}
 
@@ -515,20 +518,13 @@ func (h *AppointmentHandler) DeleteAppointment(ctx *gin.Context) {
 		return
 	}
 
-	// Check if appointment exists
-	_, err = h.queries.GetAppointmentByID(ctx.Request.Context(), id)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := h.service.DeleteAppointment(ctx.Request.Context(), id); err != nil {
+		switch err {
+		case ErrAppointmentNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete appointment"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get appointment"})
-		return
-	}
-
-	err = h.queries.DeleteAppointment(ctx.Request.Context(), id)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete appointment"})
 		return
 	}
 
@@ -560,7 +556,7 @@ func (h *AppointmentHandler) CountAppointmentsByUserAndDate(ctx *gin.Context) {
 		return
 	}
 
-	count, err := h.queries.CountAppointmentsByUserAndDate(ctx.Request.Context(), sqlc.CountAppointmentsByUserAndDateParams{
+	count, err := h.service.CountAppointmentsByUserAndDate(ctx.Request.Context(), sqlc.CountAppointmentsByUserAndDateParams{
 		UserID: userID,
 		Date:   date,
 	})

@@ -11,12 +11,12 @@ import (
 )
 
 type ServicesHandler struct {
-	queries *sqlc.Queries
+	service *ServicesService
 }
 
 func NewServicesHandler(db *sql.DB) *ServicesHandler {
 	return &ServicesHandler{
-		queries: sqlc.New(db),
+		service: NewServicesService(db),
 	}
 }
 
@@ -66,6 +66,40 @@ func toServiceResponse(s sqlc.Service) ServiceResponse {
 	}
 }
 
+// ensureSalonOwnership verifies the authenticated owner (or admin) controls the salon.
+// It returns the salon when authorized; otherwise writes an error response and returns false.
+func (h *ServicesHandler) ensureSalonOwnership(ctx *gin.Context, salonID uuid.UUID) (sqlc.Salon, bool) {
+	userIDVal, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return sqlc.Salon{}, false
+	}
+
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return sqlc.Salon{}, false
+	}
+
+	roleVal, _ := ctx.Get("role")
+	roleStr, _ := roleVal.(string)
+
+	salon, err := h.service.EnsureSalonOwnership(ctx.Request.Context(), salonID, userID, roleStr)
+	if err != nil {
+		switch err {
+		case ErrSalonNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
+		case ErrServiceForbidden:
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch salon"})
+		}
+		return sqlc.Salon{}, false
+	}
+
+	return salon, true
+}
+
 // CreateService creates a new service
 // @Summary Create a new service
 // @Tags services
@@ -83,23 +117,11 @@ func (h *ServicesHandler) CreateService(ctx *gin.Context) {
 		return
 	}
 
-	params := sqlc.CreateServiceParams{
-		SalonID:  req.SalonID,
-		Name:     req.Name,
-		Duration: req.Duration,
-		Price:    req.Price,
-		Active:   true,
+	if _, ok := h.ensureSalonOwnership(ctx, req.SalonID); !ok {
+		return
 	}
 
-	if req.UserID != nil {
-		params.UserID = uuid.NullUUID{UUID: *req.UserID, Valid: true}
-	}
-
-	if req.Active != nil {
-		params.Active = *req.Active
-	}
-
-	service, err := h.queries.CreateService(ctx.Request.Context(), params)
+	service, err := h.service.CreateService(ctx.Request.Context(), req)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create service"})
 		return
@@ -126,13 +148,14 @@ func (h *ServicesHandler) GetService(ctx *gin.Context) {
 		return
 	}
 
-	service, err := h.queries.GetServiceByID(ctx.Request.Context(), id)
+	service, err := h.service.GetServiceByID(ctx.Request.Context(), id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrServiceNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get service"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get service"})
 		return
 	}
 
@@ -161,7 +184,7 @@ func (h *ServicesHandler) ListServices(ctx *gin.Context) {
 		return
 	}
 
-	services, err := h.queries.ListServicesBySalonID(ctx.Request.Context(), salonID)
+	services, err := h.service.ListServicesBySalonID(ctx.Request.Context(), salonID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list services"})
 		return
@@ -197,7 +220,7 @@ func (h *ServicesHandler) ListActiveServices(ctx *gin.Context) {
 		return
 	}
 
-	services, err := h.queries.ListActiveServicesBySalonID(ctx.Request.Context(), salonID)
+	services, err := h.service.ListActiveServicesBySalonID(ctx.Request.Context(), salonID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list active services"})
 		return
@@ -233,7 +256,7 @@ func (h *ServicesHandler) ListServicesByUser(ctx *gin.Context) {
 		return
 	}
 
-	services, err := h.queries.ListServicesByUserID(ctx.Request.Context(), uuid.NullUUID{UUID: userID, Valid: true})
+	services, err := h.service.ListServicesByUserID(ctx.Request.Context(), userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list services"})
 		return
@@ -282,10 +305,7 @@ func (h *ServicesHandler) ListServicesBySalonAndUser(ctx *gin.Context) {
 		return
 	}
 
-	services, err := h.queries.ListServicesBySalonAndUser(ctx.Request.Context(), sqlc.ListServicesBySalonAndUserParams{
-		SalonID: salonID,
-		UserID:  uuid.NullUUID{UUID: userID, Valid: true},
-	})
+	services, err := h.service.ListServicesBySalonAndUser(ctx.Request.Context(), salonID, userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list services"})
 		return
@@ -319,47 +339,39 @@ func (h *ServicesHandler) UpdateService(ctx *gin.Context) {
 		return
 	}
 
+	service, err := h.service.GetServiceByID(ctx.Request.Context(), id)
+	if err != nil {
+		switch err {
+		case ErrServiceNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch service"})
+		}
+		return
+	}
+
+	if _, ok := h.ensureSalonOwnership(ctx, service.SalonID); !ok {
+		return
+	}
+
 	var req UpdateServiceRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	params := sqlc.UpdateServiceParams{
-		ID: id,
-	}
-
-	if req.Name != nil {
-		params.Name = sql.NullString{String: *req.Name, Valid: true}
-	}
-
-	if req.Duration != nil {
-		params.Duration = sql.NullInt32{Int32: *req.Duration, Valid: true}
-	}
-
-	if req.Price != nil {
-		params.Price = sql.NullInt32{Int32: *req.Price, Valid: true}
-	}
-
-	if req.Active != nil {
-		params.Active = sql.NullBool{Bool: *req.Active, Valid: true}
-	}
-
-	if req.UserID != nil {
-		params.UserID = uuid.NullUUID{UUID: *req.UserID, Valid: true}
-	}
-
-	service, err := h.queries.UpdateService(ctx.Request.Context(), params)
+	updatedService, err := h.service.UpdateService(ctx.Request.Context(), id, req)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrServiceNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update service"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update service"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, toServiceResponse(service))
+	ctx.JSON(http.StatusOK, toServiceResponse(updatedService))
 }
 
 // DeleteService deletes a service
@@ -378,9 +390,28 @@ func (h *ServicesHandler) DeleteService(ctx *gin.Context) {
 		return
 	}
 
-	err = h.queries.DeleteService(ctx.Request.Context(), id)
+	service, err := h.service.GetServiceByID(ctx.Request.Context(), id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete service"})
+		switch err {
+		case ErrServiceNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch service"})
+		}
+		return
+	}
+
+	if _, ok := h.ensureSalonOwnership(ctx, service.SalonID); !ok {
+		return
+	}
+
+	if err := h.service.DeleteService(ctx.Request.Context(), id); err != nil {
+		switch err {
+		case ErrServiceNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete service"})
+		}
 		return
 	}
 

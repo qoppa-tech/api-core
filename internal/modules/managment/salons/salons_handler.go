@@ -9,23 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
-	"github.com/sqlc-dev/pqtype"
 )
 
 type SalonsHandler struct {
-	queries *sqlc.Queries
+	service *SalonsService
 }
 
 func NewSalonsHandler(db *sql.DB) *SalonsHandler {
 	return &SalonsHandler{
-		queries: sqlc.New(db),
+		service: NewSalonsService(db),
 	}
 }
 
 type CreateSalonRequest struct {
 	Name          string          `json:"name" binding:"required,min=1"`
 	Slug          string          `json:"slug" binding:"required,min=1"`
-	OwnerID       uuid.UUID       `json:"owner_id" binding:"required"`
 	Address       string          `json:"address" binding:"required"`
 	Whatsapp      *string         `json:"whatsapp" binding:"omitempty"`
 	BusinessHours json.RawMessage `json:"business_hours" binding:"omitempty"`
@@ -81,6 +79,37 @@ func toSalonResponse(s sqlc.Salon) SalonResponse {
 	}
 }
 
+// ensureSalonOwnership verifies the authenticated owner (or admin) has rights over the salon.
+func (h *SalonsHandler) ensureSalonOwnership(ctx *gin.Context, salonID uuid.UUID) (sqlc.Salon, bool) {
+	userIDVal, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return sqlc.Salon{}, false
+	}
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return sqlc.Salon{}, false
+	}
+	roleVal, _ := ctx.Get("role")
+	roleStr, _ := roleVal.(string)
+
+	salon, err := h.service.EnsureOwnership(ctx.Request.Context(), salonID, userID, roleStr)
+	if err != nil {
+		switch err {
+		case ErrSalonNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
+		case ErrSalonForbidden:
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch salon"})
+		}
+		return sqlc.Salon{}, false
+	}
+
+	return salon, true
+}
+
 // CreateSalon creates a new salon
 // @Summary Create a new salon
 // @Tags salons
@@ -98,28 +127,19 @@ func (h *SalonsHandler) CreateSalon(ctx *gin.Context) {
 		return
 	}
 
-	params := sqlc.CreateSalonParams{
-		Name:    req.Name,
-		Slug:    req.Slug,
-		OwnerID: req.OwnerID,
-		Address: req.Address,
+	ownerIDVal, ok := ctx.Get("user_id")
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
 	}
 
-	if req.Whatsapp != nil {
-		params.Whatsapp = sql.NullString{String: *req.Whatsapp, Valid: true}
+	ownerID, ok := ownerIDVal.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
 	}
 
-	if req.BusinessHours != nil {
-		params.BusinessHours = req.BusinessHours
-	} else {
-		params.BusinessHours = json.RawMessage(`{}`)
-	}
-
-	if req.LogoUrl != nil {
-		params.LogoUrl = sql.NullString{String: *req.LogoUrl, Valid: true}
-	}
-
-	salon, err := h.queries.CreateSalon(ctx.Request.Context(), params)
+	salon, err := h.service.CreateSalon(ctx.Request.Context(), req, ownerID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create salon"})
 		return
@@ -146,13 +166,14 @@ func (h *SalonsHandler) GetSalon(ctx *gin.Context) {
 		return
 	}
 
-	salon, err := h.queries.GetSalonByID(ctx.Request.Context(), id)
+	salon, err := h.service.GetSalonByID(ctx.Request.Context(), id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrSalonNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get salon"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get salon"})
 		return
 	}
 
@@ -176,13 +197,14 @@ func (h *SalonsHandler) GetSalonBySlug(ctx *gin.Context) {
 		return
 	}
 
-	salon, err := h.queries.GetSalonBySlug(ctx.Request.Context(), slug)
+	salon, err := h.service.GetSalonBySlug(ctx.Request.Context(), slug)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrSalonNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get salon"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get salon"})
 		return
 	}
 
@@ -212,13 +234,14 @@ func (h *SalonsHandler) GetSalonByOwner(ctx *gin.Context) {
 		return
 	}
 
-	salon, err := h.queries.GetSalonByOwnerID(ctx.Request.Context(), ownerID)
+	salon, err := h.service.GetSalonByOwnerID(ctx.Request.Context(), ownerID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrSalonNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get salon"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get salon"})
 		return
 	}
 
@@ -233,7 +256,7 @@ func (h *SalonsHandler) GetSalonByOwner(ctx *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /salons [get]
 func (h *SalonsHandler) ListSalons(ctx *gin.Context) {
-	salons, err := h.queries.ListSalons(ctx.Request.Context())
+	salons, err := h.service.ListSalons(ctx.Request.Context())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list salons"})
 		return
@@ -267,47 +290,24 @@ func (h *SalonsHandler) UpdateSalon(ctx *gin.Context) {
 		return
 	}
 
+	if _, ok := h.ensureSalonOwnership(ctx, id); !ok {
+		return
+	}
+
 	var req UpdateSalonRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	params := sqlc.UpdateSalonParams{
-		ID: id,
-	}
-
-	if req.Name != nil {
-		params.Name = sql.NullString{String: *req.Name, Valid: true}
-	}
-
-	if req.Slug != nil {
-		params.Slug = sql.NullString{String: *req.Slug, Valid: true}
-	}
-
-	if req.Address != nil {
-		params.Address = sql.NullString{String: *req.Address, Valid: true}
-	}
-
-	if req.Whatsapp != nil {
-		params.Whatsapp = sql.NullString{String: *req.Whatsapp, Valid: true}
-	}
-
-	if req.BusinessHours != nil {
-		params.BusinessHours = pqtype.NullRawMessage{RawMessage: req.BusinessHours, Valid: true}
-	}
-
-	if req.LogoUrl != nil {
-		params.LogoUrl = sql.NullString{String: *req.LogoUrl, Valid: true}
-	}
-
-	salon, err := h.queries.UpdateSalon(ctx.Request.Context(), params)
+	salon, err := h.service.UpdateSalon(ctx.Request.Context(), id, req)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrSalonNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update salon"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update salon"})
 		return
 	}
 
@@ -330,9 +330,17 @@ func (h *SalonsHandler) DeleteSalon(ctx *gin.Context) {
 		return
 	}
 
-	err = h.queries.DeleteSalon(ctx.Request.Context(), id)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete salon"})
+	if _, ok := h.ensureSalonOwnership(ctx, id); !ok {
+		return
+	}
+
+	if err := h.service.DeleteSalon(ctx.Request.Context(), id); err != nil {
+		switch err {
+		case ErrSalonNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "salon not found"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete salon"})
+		}
 		return
 	}
 

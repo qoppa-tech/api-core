@@ -11,12 +11,12 @@ import (
 )
 
 type ClientsHandler struct {
-	queries *sqlc.Queries
+	service *ClientsService
 }
 
 func NewClientsHandler(db *sql.DB) *ClientsHandler {
 	return &ClientsHandler{
-		queries: sqlc.New(db),
+		service: NewClientsService(db),
 	}
 }
 
@@ -83,21 +83,7 @@ func (h *ClientsHandler) CreateClient(ctx *gin.Context) {
 		return
 	}
 
-	params := sqlc.CreateClientParams{
-		SalonID: req.SalonID,
-		Name:    req.Name,
-		Phone:   req.Phone,
-	}
-
-	if req.Email != nil {
-		params.Email = sql.NullString{String: *req.Email, Valid: true}
-	}
-
-	if req.Birthday != nil {
-		params.Birthday = sql.NullTime{Time: *req.Birthday, Valid: true}
-	}
-
-	client, err := h.queries.CreateClient(ctx.Request.Context(), params)
+	client, err := h.service.CreateClient(ctx.Request.Context(), req)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client"})
 		return
@@ -114,13 +100,14 @@ func (h *ClientsHandler) GetClient(ctx *gin.Context) {
 		return
 	}
 
-	client, err := h.queries.GetClientByID(ctx.Request.Context(), id)
+	client, err := h.service.GetClientByID(ctx.Request.Context(), id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrClientNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "client not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get client"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get client"})
 		return
 	}
 
@@ -140,7 +127,7 @@ func (h *ClientsHandler) ListClients(ctx *gin.Context) {
 		return
 	}
 
-	clients, err := h.queries.ListClientsBySalonID(ctx.Request.Context(), salonID)
+	clients, err := h.service.ListClientsBySalonID(ctx.Request.Context(), salonID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list clients"})
 		return
@@ -173,15 +160,9 @@ func (h *ClientsHandler) SearchClients(ctx *gin.Context) {
 	var clients []sqlc.Client
 
 	if name != "" {
-		clients, err = h.queries.SearchClientsByName(ctx.Request.Context(), sqlc.SearchClientsByNameParams{
-			SalonID: salonID,
-			Column2: sql.NullString{String: name, Valid: true},
-		})
+		clients, err = h.service.SearchClientsByName(ctx.Request.Context(), salonID, name)
 	} else if phone != "" {
-		clients, err = h.queries.SearchClientsByPhone(ctx.Request.Context(), sqlc.SearchClientsByPhoneParams{
-			SalonID: salonID,
-			Column2: sql.NullString{String: phone, Valid: true},
-		})
+		clients, err = h.service.SearchClientsByPhone(ctx.Request.Context(), salonID, phone)
 	} else {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "name or phone query parameter is required"})
 		return
@@ -219,33 +200,14 @@ func (h *ClientsHandler) UpdateClient(ctx *gin.Context) {
 		return
 	}
 
-	params := sqlc.UpdateClientParams{
-		ID: id,
-	}
-
-	if req.Name != nil {
-		params.Name = sql.NullString{String: *req.Name, Valid: true}
-	}
-
-	if req.Phone != nil {
-		params.Phone = sql.NullString{String: *req.Phone, Valid: true}
-	}
-
-	if req.Email != nil {
-		params.Email = sql.NullString{String: *req.Email, Valid: true}
-	}
-
-	if req.Birthday != nil {
-		params.Birthday = sql.NullTime{Time: *req.Birthday, Valid: true}
-	}
-
-	client, err := h.queries.UpdateClient(ctx.Request.Context(), params)
+	client, err := h.service.UpdateClient(ctx.Request.Context(), id, req)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrClientNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "client not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update client"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update client"})
 		return
 	}
 
@@ -260,19 +222,13 @@ func (h *ClientsHandler) DeleteClient(ctx *gin.Context) {
 		return
 	}
 
-	_, err = h.queries.GetClientByID(ctx.Request.Context(), id)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := h.service.DeleteClient(ctx.Request.Context(), id); err != nil {
+		switch err {
+		case ErrClientNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "client not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete client"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get client"})
-		return
-	}
-
-	err = h.queries.DeleteClient(ctx.Request.Context(), id)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete client"})
 		return
 	}
 
@@ -298,16 +254,14 @@ func (h *ClientsHandler) GetClientByPhone(ctx *gin.Context) {
 		return
 	}
 
-	client, err := h.queries.GetClientByPhone(ctx.Request.Context(), sqlc.GetClientByPhoneParams{
-		SalonID: salonID,
-		Phone:   phone,
-	})
+	client, err := h.service.GetClientByPhone(ctx.Request.Context(), salonID, phone)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		switch err {
+		case ErrClientNotFound:
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "client not found"})
-			return
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get client"})
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get client"})
 		return
 	}
 
