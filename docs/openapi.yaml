@@ -30,6 +30,8 @@ tags:
     description: Salon management endpoints
   - name: Services
     description: Service management endpoints
+  - name: Dashboard
+    description: Dashboard KPIs and aggregates
 
 paths:
   /health:
@@ -1327,6 +1329,50 @@ paths:
         '401':
           description: Unauthorized
 
+  /dashboard/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Dashboard monthly KPIs
+      description: Returns monthly aggregates for appointments, services, and clients. Defaults to the current month when year/month are omitted. Only the owner of the salon can access its data.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: salon_id
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Salon ID to scope the aggregates. Defaults to the salon from the access token when omitted. Must belong to the authenticated owner; otherwise returns 403.
+        - in: query
+          name: year
+          schema:
+            type: integer
+            example: 2025
+        - in: query
+          name: month
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 5
+      responses:
+        '200':
+          description: Summary data for the month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '400':
+          description: Missing or invalid query params
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (user does not own the salon)
+        '500':
+          description: Failed to compute summary
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1816,6 +1862,83 @@ components:
         created_at:
           type: string
           format: date-time
+
+    # ==================== DASHBOARD SCHEMAS ====================
+    DashboardSummary:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+          example: "2025-05-01"
+        appointments:
+          $ref: '#/components/schemas/DashboardAppointmentStats'
+        services:
+          $ref: '#/components/schemas/DashboardServicesStats'
+        clients:
+          $ref: '#/components/schemas/DashboardClientsStats'
+
+    DashboardAppointmentStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 120
+        done:
+          type: integer
+          example: 80
+        cancelled:
+          type: integer
+          example: 10
+        no_show:
+          type: integer
+          example: 5
+        pending:
+          type: integer
+          example: 15
+        confirmed:
+          type: integer
+          example: 10
+
+    DashboardServiceCount:
+      type: object
+      properties:
+        service_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Haircut"
+        count:
+          type: integer
+          example: 40
+
+    DashboardServicesStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 120
+        per_service:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardServiceCount'
+
+    DashboardClientsStats:
+      type: object
+      properties:
+        new_clients:
+          type: integer
+          example: 25
+        unique_this_month:
+          type: integer
+          example: 60
+        engaged_last_90_days:
+          type: integer
+          example: 35
+        active_last_90_days:
+          type: integer
+          example: 50
 
     # ==================== SALON SCHEMAS ====================
     CreateSalonRequest:

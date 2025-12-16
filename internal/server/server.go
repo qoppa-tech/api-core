@@ -13,6 +13,7 @@ import (
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"github.com/parlorhub/api-core/internal/modules/auth/session"
 	contactform "github.com/parlorhub/api-core/internal/modules/contact_form"
+	"github.com/parlorhub/api-core/internal/modules/dashboard"
 	"github.com/parlorhub/api-core/internal/modules/managment/appointment"
 	"github.com/parlorhub/api-core/internal/modules/managment/clients"
 	"github.com/parlorhub/api-core/internal/modules/managment/salons"
@@ -36,6 +37,7 @@ type Server struct {
 	appointmentHandler *appointment.AppointmentHandler
 	salonsHandler      *salons.SalonsHandler
 	servicesHandler    *services.ServicesHandler
+	dashboardHandler   *dashboard.Handler
 }
 
 func NewServer() *http.Server {
@@ -58,6 +60,7 @@ func NewServer() *http.Server {
 	appointmentHandler := appointment.NewAppointmentHandler(db.GetDB())
 	salonsHandler := salons.NewSalonsHandler(db.GetDB())
 	servicesHandler := services.NewServicesHandler(db.GetDB())
+	dashboardHandler := dashboard.NewHandler(db.GetDB())
 
 	NewServer := &Server{
 		port: port,
@@ -73,6 +76,7 @@ func NewServer() *http.Server {
 		appointmentHandler: appointmentHandler,
 		salonsHandler:      salonsHandler,
 		servicesHandler:    servicesHandler,
+		dashboardHandler:   dashboardHandler,
 	}
 
 	server := &http.Server{

@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
+	helper "github.com/parlorhub/api-core/internal/helper/user"
 	"github.com/parlorhub/api-core/internal/logger"
 	"github.com/parlorhub/api-core/internal/modules/auth"
 	"golang.org/x/oauth2"
@@ -150,7 +151,7 @@ func (h *SSOHandler) GoogleCallbackHandler(ctx *gin.Context) {
 	frontendURL := os.Getenv("FRONTEND_URL")
 	redirectURL := frontendURL + "/auth/callback"
 
-	params := "?onboardingCompleted=" + strconv.FormatBool(user.OnboardingCompletedAt.Valid)
+	params := "?onboardingCompleted=" + strconv.FormatBool(helper.IsOnboardingCompleted(user))
 	if user.CurrentOnboardingStepID.Valid {
 		params += "&onboardingStep=" + strconv.Itoa(int(user.CurrentOnboardingStepID.Int32))
 	}

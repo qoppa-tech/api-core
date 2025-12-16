@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/parlorhub/api-core/internal/database/sqlc"
+	helper "github.com/parlorhub/api-core/internal/helper/user"
 	"github.com/parlorhub/api-core/internal/logger"
 )
 
@@ -55,7 +56,7 @@ func toProfileResponse(user sqlc.User) ProfileResponse {
 		Phone:                 user.Phone,
 		Role:                  string(user.Role),
 		SalonID:               salonID,
-		OnboardingCompleted:   user.OnboardingCompletedAt.Valid,
+		OnboardingCompleted:   helper.IsOnboardingCompleted(user),
 		CurrentOnboardingStep: currentStep,
 	}
 }

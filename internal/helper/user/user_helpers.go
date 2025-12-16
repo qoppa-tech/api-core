@@ -49,3 +49,16 @@ func CompareUserRolePrivileges(userRole1 sqlc.UserRole, userRole2 sqlc.UserRole)
 
 	return role1integer >= role2integer, nil
 }
+
+// IsOnboardingCompleted returns true if onboarding_completed_at is set OR user is at/past step 4 (last step)
+const LastOnboardingStep = 4
+
+func IsOnboardingCompleted(user sqlc.User) bool {
+	if user.OnboardingCompletedAt.Valid {
+		return true
+	}
+	if user.CurrentOnboardingStepID.Valid && user.CurrentOnboardingStepID.Int32 >= LastOnboardingStep {
+		return true
+	}
+	return false
+}

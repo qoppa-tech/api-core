@@ -249,7 +249,11 @@ func (h *OnboardingHandler) SaveOnboardingStep(ctx *gin.Context) {
 		}
 	}
 
-	if req.IsLastStep {
+	// Auto-complete when step 4 (last step) is reached
+	const lastStep int32 = 4
+	isComplete := req.IsLastStep || req.StepID >= lastStep
+
+	if isComplete {
 		err = qtx.CompleteUserOnboarding(ctx.Request.Context(),
 			sqlc.CompleteUserOnboardingParams{
 				ID:                      userID.(uuid.UUID),
@@ -277,7 +281,7 @@ func (h *OnboardingHandler) SaveOnboardingStep(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":   "step saved successfully",
 		"step_id":   req.StepID,
-		"completed": req.IsLastStep,
+		"completed": isComplete,
 	})
 }
 
@@ -321,7 +325,12 @@ func buildOnboardingResponse(
 		currentStep = &user.CurrentOnboardingStepID.Int32
 	}
 
+	// Consider completed if onboarding_completed_at is set OR user is at the last step
 	completed := user.OnboardingCompletedAt.Valid
+	if !completed && len(steps) > 0 && user.CurrentOnboardingStepID.Valid {
+		lastStepID := steps[len(steps)-1]
+		completed = user.CurrentOnboardingStepID.Int32 >= lastStepID
+	}
 
 	return OnboardingProgressResponse{
 		Steps:          stepResponses,

@@ -114,6 +114,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 		servicesGroup.DELETE("/:id", s.servicesHandler.DeleteService)
 	}
 
+	dashboardGroup := r.Group("/dashboard")
+	dashboardGroup.Use(auth.AuthMiddleware(s.authHandler.GetService()))
+	dashboardGroup.Use(s.rbacMiddleware.RBACMiddleware(sqlc.UserRoleOwner))
+	{
+		dashboardGroup.GET("/summary", s.dashboardHandler.GetSummary)
+	}
+
 	r.Static("/swagger", "./docs")
 	r.GET("/docs", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/swagger/swagger.html")
